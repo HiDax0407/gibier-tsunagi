@@ -38,3 +38,17 @@ test('CSV：見出しがあり、式として動く書き方は無効にする',
   assert.equal(lines[0], '日付,工程,教えた人,一緒にやった人,したこと,ベテラン本人の確認,チームの確認');
   assert.equal(lines[1], `2026-11-01,見回り,岩田,'=1+1,"a,b",はい,未`);
 });
+
+import { countDistrict, townRows } from '../public/lib/town.js';
+
+test('町の画面：北沢地区の数（1人だけ2・空き1・手を挙げた人3・教えた回数3）', () => {
+  const n = countDistrict({ rows: team.rows, cards: team.cards, records, experienceRoles: team.experienceRoles });
+  assert.deepEqual(n, { roles: 7, single: 2, empty: 1, experience: 0, hands: 3, teach: 3 });
+});
+
+test('町の画面に出す形には、地区名と数だけ（個人名を含まない）', () => {
+  const n = countDistrict({ rows: team.rows, cards: team.cards, records, experienceRoles: team.experienceRoles });
+  const out = JSON.stringify(townRows(team.town.districts, n));
+  for (const name of team.teach.people) assert.equal(out.includes(name), false, `${name} が出ている`);
+  assert.equal(townRows(team.town.districts, n).length, 3);
+});

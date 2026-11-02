@@ -10,7 +10,8 @@ export function loadRaw() {
   const prepared = JSON.parse(readFileSync(join(root, 'data/prepared/gibier_team.json'), 'utf8'));
   const roles = JSON.parse(readFileSync(join(root, 'data/kitazawa_roles.json'), 'utf8'));
   const teach = JSON.parse(readFileSync(join(root, 'data/teach_records.json'), 'utf8'));
-  return { prepared, roles, teach };
+  const town = JSON.parse(readFileSync(join(root, 'data/town.json'), 'utf8'));
+  return { prepared, roles, teach, town };
 }
 
 // 担当の人数から状態を決める：空き／1人だけ／2人以上
@@ -35,7 +36,7 @@ export function stopRisks(rows) {
 // 「岩田 勝（架空）」→「岩田」
 export const surname = (name) => String(name).replace(/（架空）/g, '').trim().split(/\s+/)[0];
 
-export function buildTeam({ prepared, roles, teach = { records: [] } }) {
+export function buildTeam({ prepared, roles, teach = { records: [] }, town = { town: '', districts: [] } }) {
   const rows = prepared.current_roles.map((r) => {
     const meta = roles.roles[r.role] || {};
     return {
@@ -80,5 +81,9 @@ export function buildTeam({ prepared, roles, teach = { records: [] } }) {
       teachers: prepared.members.map((m) => surname(m.name)),
       people: [...prepared.members, ...prepared.volunteers].map((m) => surname(m.name)),
     },
+    // ベテランの話が工程ごとに残った工程（Claude 接続後に増える）
+    experienceRoles: roles.experience_recorded || [],
+    // 町の画面（数だけ。北沢地区は画面側でこのデータから数える）
+    town: { name: town.town, districts: town.districts },
   };
 }

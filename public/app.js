@@ -1,6 +1,7 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
+import { countDistrict, townRows } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, isConfirmed, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 
 const view = document.getElementById('view');
@@ -99,7 +100,8 @@ function renderTeam() {
     <figure class="photo">
       <img src="/img/photo_03_shokudo.jpg" alt="山あいの食堂に並ぶ鹿肉の煮込み定食（AI で生成した架空の場面）" loading="lazy">
       <figcaption>ゴール：地域の名産として出せる状態。この先に、新しく入る人が増える・農村の被害が減る・ジビエが普段の食べものになる。（写真は AI で生成した架空の場面）</figcaption>
-    </figure>`;
+    </figure>
+    <button class="outline wide" data-go="town" style="margin-top:20px">${icon('town')}町の地区一覧（町の担当の方向け）</button>`;
 }
 
 // ---------- 3 止まる役割 ----------
@@ -420,6 +422,40 @@ function downloadCsv(month) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
+// ---------- 6 町の画面（町の担当の方向け） ----------
+// 地区ごとの数だけを出す。個人名は出さない。
+function renderTown() {
+  renderTop({ back: '#/team', here: '町の地区一覧' });
+  const live = countDistrict({
+    rows: data.rows,
+    cards: data.cards.map((c) => ({ hands: handsFor(c) })),
+    records: teachRecords(),
+    experienceRoles: data.experienceRoles,
+  });
+  const rows = townRows(data.town.districts, live);
+  const num = (n, unit, label, sub = '') => `<div class="tn"><b>${n}<small>${unit}</small></b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  const cards = rows.map((d) => `
+    <article class="dist">
+      <div class="dn">${esc(d.name)}${d.live ? '<span class="pill sm">チームのデータから数える</span>' : ''}</div>
+      <div class="tgrid">
+        ${num(d.single, '', '1人だけの役割', d.empty ? `担当がいない役割 ${d.empty}` : '')}
+        ${num(d.experience, `<i>/${d.roles}</i>`, '経験が残った工程')}
+        ${num(d.hands, '人', '手を挙げた人')}
+        ${num(d.teach, '回', '教えた回数', '確かめ済み')}
+      </div>
+    </article>`).join('');
+  view.innerHTML = `
+    <p class="kicker">町の担当の方向け</p>
+    <h1>${esc(strip(data.town.name))}の<br>地区一覧</h1>
+    <p class="lead">地区ごとの数だけを出します。個人名は出しません。</p>
+    ${cards}
+    <ul class="notes">
+      <li>北沢地区の数は、チームの表・募集カード・教えた記録から数えています。南沢・東原は画面を見せるための架空の数です。</li>
+      <li>「経験が残った工程」は、話す画面で残した話を Claude が工程ごとにまとめてから数えます（準備中のため、北沢は今 0）。</li>
+      <li>計画の見直しや報告の材料に使えるかは、町の窓口で確かめてください（要確認）。</li>
+    </ul>`;
+}
+
 // ---------- 切り替え ----------
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
@@ -429,6 +465,7 @@ function route() {
   renderTabs(tab);
   if (name === 'cards' && arg) renderCard(arg);
   else if (name === 'teach') renderTeach(arg);
+  else if (name === 'town') renderTown();
   else ({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk }[tab])();
   window.scrollTo(0, 0);
 }
