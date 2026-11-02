@@ -99,3 +99,9 @@ export function routeFor(trap, road, facility) {
   road.forEach((p, i) => { if (km(here, p) < km(here, road[near])) near = i; });
   return [here, ...road.slice(near), [facility.lat, facility.lng]];
 }
+
+// ---------- Google マップで道案内を開く（キー不要・押したときだけ位置を渡す） ----------
+export function googleMapsDir(lat, lng) {
+  const n = (v) => Number(v).toFixed(6);
+  return `https://www.google.com/maps/dir/?api=1&destination=${n(lat)},${n(lng)}&travelmode=driving`;
+}

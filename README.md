@@ -5,6 +5,8 @@
 
 ![霜の林道を見回りに向かう猟師の後ろ姿（AI で生成した架空の場面）](public/img/photo_01_mimawari.jpg)
 
+**目的は、害獣による農作物の被害を減らすこと。** そのために、捕まえる人と経験が地域に続く形をつくる。
+
 ベテラン猟師の長年の経験を、**話すだけ**で「手順」と「注意」の形に集める。
 新しく入る人が、資格を取って一人前になるまでの**道のりを迷わず短く**する。
 ベテランが教えた日を記録に残し、**教えることへの謝礼の根拠**にする。
@@ -35,7 +37,8 @@
 | 町や県の担当が少なく、鳥獣対策の書類に手が回らない〔現場の声〕 | ○ | 見回り・捕獲・出動が話す＋写真で一行ずつたまり、月末の一覧と地区の数の下書きになる。抜けも一覧に出る |
 | どのわなを見に行けばいいか・誰と行くか | ○ | わなの地図で「入った」「しばらく見ていない」が色で分かり、担当と二人で行く相手がすぐ出る |
 | 資格を取るまでの期間 | △ | 試験の日程は県が決める。変わるのは迷う時間・待つだけの時間 |
-| 農作物の被害・ジビエが普段の食べものになること | 対象外 | 担い手が続くことが前提。捕獲量・施設・販路は別の取り組み |
+| 農作物の被害を減らす（目的） | △ | 担い手と見回りが続くことで支える。被害の知らせ・捕獲・見回りの移り変わりを「被害を減らす」画面で見える化する。ただし被害は天候・獣の数・柵などでも変わるので、アプリだけの効果とは言わない |
+| ジビエが普段の食べものになること | 対象外 | 捕獲量・施設・販路は別の取り組み |
 
 ## 誰の・どんな課題か
 
@@ -61,7 +64,8 @@
 | 止まる役割 | 「岩田さんが休むと止まる役割」を理由つきで。そこから募集カードへ |
 | 募集 | 役割ごとの募集カードと一人前までの道のり（4段）。地域の人が自分で手を挙げ、チームが決める |
 | 教えた記録 | 一緒にやった日・工程・相手。ベテラン本人とチームが「はい」で確かめる。月ごとの一覧を印刷・CSV で書き出し |
-| わな（わなの地図） | わなの点を色で見せる（入った／しばらく見ていない／空／見回り済み）。押すと担当と「二人で行く」相手と、処理場までの道（チームが登録した運び出しの道・距離と目安の時間）。見回った人が話すだけで色が変わる。センサーの知らせは模擬 |
+| 被害を減らす（チームの画面のいちばん上から） | 目的の見える化。住民からの被害の知らせの移り変わり（折れ線）、月ごとの捕獲（シカ・イノシシの積み上げ棒）、見回りの回数、2人以上いる工程、地区ごとの捕獲と知らせ。グラフを押すとその月の数が出る。表でも見られる。町・県とつながる画面への入口 |
+| わな（わなの地図） | わなの点を色で見せる（入った／しばらく見ていない／空／見回り済み）。押すと担当と「二人で行く」相手と、処理場までの道（チームが登録した運び出しの道・距離と目安の時間）。「Googleマップでわなへ行く」「Googleマップで処理場へ行く」で、いつもの道案内が始まる。見回った人が話すだけで色が変わる。センサーの知らせは模擬 |
 | 活動と捕獲の記録（わなの画面から） | 日時・わな・地区・獣種・頭数の一行。抜けチェック。町へ出す一覧の下書き（列を町の様式に合わせて選べる・印刷・CSV） |
 | 見かけたら知らせる（住民の方） | ログインなし・名前なし。話す＋写真で出没・被害を知らせ、地区に置いてチームへ回す |
 | 町の地区一覧（チームの画面の下から） | 町の担当の方向け。地区ごとに「1人だけの役割」「経験が残った工程」「手を挙げた人」「教えた回数」と、シカ・イノシシ・見回り・住民の知らせの数。県へ上げる数の下書き。個人名は出さない |
@@ -102,10 +106,11 @@
 ### 5. わなの見回り ── 地図を見て、二人で行き、話して残す
 1. 「わな」で、わなの点を見る。黒＝入った、注意の色＝しばらく見ていない、灰色＝空、深緑＝今日見回り済み。「しばらく見ていない」の目安の時間はチームで決める（見回りの決まりはチームと県に確認）
 2. 「入った」のわなを押すと、担当と「二人で行く」相手（チームが決めた組み合わせ）と、処理場までの道（チームが登録した運び出しの道。距離と目安の時間つき・実在の道路の案内ではない）が出る。「二人で向かう」で出動の記録が残り、新しく入った人と一緒なら、ベテランの「教えた記録」にも残る
-3. 見回った人が「3番、シカが1頭かかっとった」と話すと、わなの番号・結果・獣の種類・頭数を拾って見せる。確かめて残すと、点が「見回り済み」に変わり、捕獲の記録に一行足される
-4. 「活動と捕獲の記録」で、抜け（写真なし・日時なし・獣種や頭数なし・確認待ち）を直し、チームが「はい」を押してから「町へ出す」を押す。月末に、町の様式に合わせた列で一覧を印刷・CSV で書き出す
+3. 「Googleマップで わなへ行く／処理場へ行く」を押すと、Google マップの道案内が開く（キーも費用もいらない。押したときだけ、その場所を Google マップに渡す）
+4. 見回った人が「3番、シカが1頭かかっとった」と話すと、わなの番号・結果・獣の種類・頭数を拾って見せる。確かめて残すと、点が「見回り済み」に変わり、捕獲の記録に一行足される
+5. 「活動と捕獲の記録」で、抜け（写真なし・日時なし・獣種や頭数なし・確認待ち）を直し、チームが「はい」を押してから「町へ出す」を押す。月末に、町の様式に合わせた列で一覧を印刷・CSV で書き出す
 
-※ 機器は作っていません。センサーの知らせは、画面のボタンと 30 秒ごとのタイマーで模擬しています。実際には、今あるわなセンサーの知らせを受ける想定です。知らせは LINE でも送れる形を考えています（今は送りません・LINE とはつないでいません）。わなの場所はチームの中だけで見ます。地図の場所は見本のための仮の位置で、わなの点はすべて架空です
+※ 機器は作っていません。センサーの知らせは、画面のボタンと 30 秒ごとのタイマーで模擬しています。実際には、今あるわなセンサーの知らせを受ける想定です。知らせは LINE でも送れる形を考えています（今は送りません・LINE とはつないでいません）。わなの場所はチームの中だけで見ます。地図の場所は見本のための仮の位置で、わなの点はすべて架空です（Google マップの道案内も、その仮の位置を指します）
 
 ### 6. 住民の方 ── 見かけたら知らせる
 1. わなの画面の「見かけたら知らせる」を開く（実際には町が配るリンク。ログインなし・名前なし）
@@ -186,6 +191,7 @@ MIT
 - **Town view**: per-district counts only (single-person roles, stages with recorded experience, raised hands, confirmed teaching days, deer/boar caught, patrols, resident reports) and a draft of the numbers to report to the prefecture. No personal names.
 - **Trap map**: traps shown as colored dots (caught / not checked for a while / empty / patrolled today) on Leaflet with GSI tiles. Tapping a caught trap shows the assignee and the partner to go with (decided by the team). The patroller just talks and the dot changes. Sensor alerts are simulated; no hardware is built.
 - **Less paperwork for towns**: patrols, catches and dispatches become one line each (date/time, trap, district, species, count) by voice plus a photo; a gap check lists what is missing; a month-end draft list with town-specific columns is printed or exported. Only records the team confirmed and chose to send go to the town. The app never judges subsidy eligibility or amounts, and never identifies species from photos.
+- **Purpose — reducing crop damage**: a visual screen shows the trend of residents' damage reports, monthly catches (deer/boar), patrols, stages with two or more people, and per-district catches (hand-drawn SVG charts, tap for values, table view). The app does not claim the change is caused by the app alone. Trap and facility panels open Google Maps directions (no API key).
 - **Watch-over**: notifies family or the team (as chosen by the person) after N days without talking. It never judges health, and sentences about health are not stored.
 - **Interview patterns**: a Claude Skill and two subagents in the repo (find stages not yet asked about; find gaps in records).
 - The AI never ranks or selects people. People raise their hands; the team decides. The app does not answer questions about hunting methods, laws, hygiene or licensing.

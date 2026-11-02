@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRaw, buildTeam } from '../src/team.mjs';
-import { trapState, countStates, placeTraps, nextSignalTrap, parsePatrol, routeFor, routeKm } from '../public/lib/traps.js';
+import { trapState, countStates, placeTraps, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir } from '../public/lib/traps.js';
 import { findGaps, draftTable, draftCsv, districtTotals, logsForMonth, DEFAULT_COLUMNS } from '../public/lib/log.js';
 import { splitHealth, daysSince, watchList } from '../public/lib/watch.js';
 import { missingSteps, nextQuestion, KATA } from '../public/lib/kikikata.js';
@@ -65,6 +65,14 @@ test('処理場までの道：わなから道に入り、処理場で終わる�
     assert.ok(Number.isInteger(t.minutes), t.id);
   }
   assert.equal(routeKm([[35, 135], [35, 135]]), 0);
+});
+
+test('Google マップの道案内：キーを使わない公開の書式で、行き先の座標だけを渡す', () => {
+  const u = new URL(googleMapsDir(35.2068, 133.6252));
+  assert.equal(u.origin + u.pathname, 'https://www.google.com/maps/dir/');
+  assert.equal(u.searchParams.get('api'), '1');
+  assert.equal(u.searchParams.get('destination'), '35.206800,133.625200');
+  assert.deepEqual([...u.searchParams.keys()].sort(), ['api', 'destination', 'travelmode']);
 });
 
 // ---------- 活動と捕獲の記録 ----------

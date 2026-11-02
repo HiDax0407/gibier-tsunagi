@@ -4,7 +4,7 @@
 // 「二人で行く」相手はチームが決めた組み合わせ。AI は人を選ばない。
 import { ctx, view, esc, icon, renderTop, toast, voiceField, agoLabel, timeLabel, loadLeaflet, store } from '../ui.js';
 import { traps, setTrap, staleHours, addLog, addTeach, markSpoke, reports } from '../model.js';
-import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm } from '../lib/traps.js';
+import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir } from '../lib/traps.js';
 import { splitHealth } from '../lib/watch.js';
 
 let map = null;         // Leaflet の地図
@@ -146,7 +146,12 @@ function routeText(t) {
   const d = ctx.data.traps;
   if (!d.facility) return '';
   const k = routeKm(routeFor(t, d.road, d.facility));
-  return `<p class="route">${icon('truck')}<span>${esc(d.facility.name)}まで 約${k.toFixed(1)}km・目安 約${t.minutes}分<small>チームが登録した運び出しの道と時間です（架空）。道の状態や運び方の決まりは、チームと確かめてください。</small></span></p>`;
+  return `<p class="route">${icon('truck')}<span>${esc(d.facility.name)}まで 約${k.toFixed(1)}km・目安 約${t.minutes}分<small>チームが登録した運び出しの道と時間です（架空）。道の状態や運び方の決まりは、チームと確かめてください。</small></span></p>
+    <div class="gmaps">
+      <a class="gbtn" href="${esc(googleMapsDir(t.lat, t.lng))}" target="_blank" rel="noopener">${icon('pin')}Googleマップで<br>わなへ行く</a>
+      <a class="gbtn" href="${esc(googleMapsDir(d.facility.lat, d.facility.lng))}" target="_blank" rel="noopener">${icon('truck')}Googleマップで<br>処理場へ行く</a>
+    </div>
+    <p class="muted" style="margin:6px 0 0">いつもの Google マップで道案内が始まります。押したときだけ、その場所を Google マップに渡します（デモの位置は仮の場所です）。</p>`;
 }
 
 function renderPanel(t) {

@@ -15,7 +15,8 @@ export function loadRaw() {
   const traps = JSON.parse(readFileSync(join(root, 'data/traps.json'), 'utf8'));
   const activity = JSON.parse(readFileSync(join(root, 'data/activity_log.json'), 'utf8'));
   const watch = JSON.parse(readFileSync(join(root, 'data/watch.json'), 'utf8'));
-  return { prepared, roles, teach, town, traps, activity, watch };
+  const impact = JSON.parse(readFileSync(join(root, 'data/impact.json'), 'utf8'));
+  return { prepared, roles, teach, town, traps, activity, watch, impact };
 }
 
 // 担当の人数から状態を決める：空き／1人だけ／2人以上
@@ -48,6 +49,7 @@ export function buildTeam({
   traps = EMPTY_TRAPS,
   activity = { logs: [], reports: [] },
   watch = { people: [] },
+  impact = { months: [], deer: [], boar: [], damage: [], patrol: [], two_or_more: [] },
 }) {
   const rows = prepared.current_roles.map((r) => {
     const meta = roles.roles[r.role] || {};
@@ -113,6 +115,8 @@ export function buildTeam({
     logs: activity.logs,
     reports: activity.reports,
     // 見守り：最後に話した日と、本人が決めた知らせ先だけ
+    // 被害を減らす見える化（架空の推移・数だけ）
+    impact: { months: impact.months, deer: impact.deer, boar: impact.boar, damage: impact.damage, patrol: impact.patrol, twoOrMore: impact.two_or_more },
     watch: watch.people.map((p) => ({ name: p.name, spokeDaysAgo: p.spokeDaysAgo, afterDays: p.afterDays, notify: p.notify })),
   };
 }

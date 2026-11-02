@@ -12,6 +12,8 @@ import { logs, reports, markSpoke } from './model.js';
 import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
 import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit } from './screens/log.js';
 import { renderWatch, watchClick } from './screens/watch.js';
+import { renderImpact, impactPointer } from './screens/impact.js';
+import { change, monthShort } from './lib/impact.js';
 
 let data;
 
@@ -60,7 +62,13 @@ function renderTeam() {
   const manual = data.goal.checks.filter((c) => !c.auto).map((c) => `
     <div class="check"><button data-goal="${esc(c.id)}" aria-pressed="${!!checks[c.id]}" aria-label="${esc(c.label)}">✓</button><span>${esc(c.label)}</span></div>`).join('');
 
+  const dmg = change(data.impact.damage);
   view.innerHTML = `
+    <a class="goal-link" href="#/impact">
+      <span class="gl-k">目的：害獣の被害を減らす</span>
+      <span class="gl-v"><b>${dmg.last}<small>件</small></b><span>${monthShort(data.impact.months.at(-1))}の、住民からの被害の知らせ<br>${monthShort(data.impact.months[0])}は ${dmg.first}件（架空のデモ）</span></span>
+      <span class="gl-go">見える化を見る ${ICON.next}</span>
+    </a>
     <h1>${esc(areaName)}のチーム</h1>
     <p class="goal-head">名産として出せる状態まで</p>
     <p class="goal-num">${left === 0 ? 'そろいました' : `あと${left}<small>つ</small>`}</p>
@@ -446,6 +454,7 @@ function renderTown() {
       <li>シカ・イノシシ・見回りの数は、チームが確かめて「町へ出す」を押した記録だけを数えます。住民の知らせは件数だけです。</li>
       <li>計画の見直しや報告の材料に使えるかは、町の窓口で確かめてください（要確認）。</li>
     </ul>
+    <a class="goal-link" href="#/impact" style="margin-top:20px"><span class="gl-k">目的：害獣の被害を減らす</span><span class="gl-v"><span>被害の知らせ・捕獲・見回りの移り変わりをグラフで見る</span></span><span class="gl-go">見える化 ${ICON.next}</span></a>
     <h2>県へ上げる数の下書き</h2>
     <p class="muted" style="margin-top:-6px">地区ごとの数と合計です。個人名は出しません。交付金・報償金の対象かどうかと金額は判断しません。</p>
     <div class="tscroll">${sumTable}</div>
@@ -478,7 +487,7 @@ function route() {
   if (name !== 'map') leaveMap();
   document.body.classList.remove('has-cta');
   // タブのない画面は、つながっているタブを光らせる
-  const parent = { log: 'map', report: 'map', watch: 'team', town: 'team' }[name];
+  const parent = { log: 'map', report: 'map', watch: 'team', town: 'team', impact: 'team' }[name];
   const tab = TABS.some((t) => t.id === name) ? name : parent || 'team';
   renderTabs(tab);
   if (name === 'cards' && arg) renderCard(arg);
@@ -487,6 +496,7 @@ function route() {
   else if (name === 'log') renderLog(arg);
   else if (name === 'report') renderReport();
   else if (name === 'watch') renderWatch();
+  else if (name === 'impact') renderImpact();
   else ({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk, map: renderMap }[tab])();
   window.scrollTo(0, 0);
 }
@@ -495,7 +505,7 @@ function route() {
 document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
   if (go) { location.hash = `#/${go.dataset.go}`; return; }
-  if (mapClick(e) || logClick(e) || reportClick(e) || watchClick(e)) return;
+  if (mapClick(e) || logClick(e) || reportClick(e) || watchClick(e) || impactPointer(e)) return;
 
   // 地図・記録・住民の知らせの「押して話す」
   const vb = e.target.closest('[data-voice]');
