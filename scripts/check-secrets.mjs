@@ -4,6 +4,7 @@
 //   node scripts/check-secrets.mjs --staged   … コミット予定のファイルを調べる（git の pre-commit から呼ぶ）
 //   node scripts/check-secrets.mjs --worktree … コミットされうる全ファイル（.gitignore で除いたもの以外）を調べる
 //   node scripts/check-secrets.mjs --push     … push で送るコミットを1つずつ調べる（git の pre-push から呼ぶ・標準入力で範囲を受け取る）
+//   node scripts/check-secrets.mjs --history  … これまでの全コミットを調べる（GitHub Actions から呼ぶ）
 //   node scripts/check-secrets.mjs <file...>  … 指定したファイルを調べる
 // 見つかったら終了コード 1 で止める。
 import { execFileSync } from 'node:child_process';
@@ -87,8 +88,8 @@ function scanTreeFiles(sha, files, seen) {
     try { buf = execFileSync('git', ['cat-file', 'blob', blob], { maxBuffer: 50 * 1024 * 1024 }); } catch {
       console.error(`✖ ${where}：大きすぎるか読めないため調べられませんでした`); problems++; continue;
     }
-    if (buf.includes(0)) continue; // 画像などの中身（文字ではない）
-    for (const h of scanText(buf.toString('utf8'))) { console.error(`✖ ${where}:${h.line}：${h.kind}らしき文字列`); problems++; }
+    // 画像なども飛ばさずに調べる（文字として読めない部分があっても、キーの形は見つけられる）
+    for (const h of scanText(buf.toString('latin1'))) { console.error(`✖ ${where}:${h.line}：${h.kind}らしき文字列`); problems++; }
   }
   return problems;
 }
@@ -109,6 +110,16 @@ function scanCommits(shas, tips) {
 }
 
 function main(argv) {
+  if (argv.includes('--history')) {
+    const shas = execFileSync('git', ['rev-list', '--all'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+    const problems = scanCommits(shas, ['HEAD']);
+    if (problems) {
+      console.error(`\nこれまでのコミットに、秘密情報らしきものが ${problems} か所あります。`);
+      process.exit(1);
+    }
+    console.log(`${shas.length} 件のコミットを調べました。問題なし。`);
+    return;
+  }
   if (argv.includes('--push')) {
     let input = '';
     try { input = readFileSync(0, 'utf8'); } catch { /* 入力なし */ }
