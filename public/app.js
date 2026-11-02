@@ -50,7 +50,8 @@ function renderTop({ back, here } = {}) {
     top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}ジビエつなぎ</a>${here ? `<span class="here">${esc(here)}</span>` : ''}`;
   } else {
     top.className = 'top';
-    top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area">${esc(data.area.name)}</span>`;
+    top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area">${esc(data.area.name)}</span>
+      <button class="zoom" data-zoom aria-pressed="${document.body.classList.contains('big')}">大きな字</button>`;
   }
 }
 
@@ -201,20 +202,107 @@ function renderCard(id) {
   document.body.classList.add('has-cta');
 }
 
-// ---------- 1 経験を集める ----------
+// ---------- 1 経験を集める（高齢の猟師さんが使える形） ----------
+// 押して話すだけ・ログインなし・大きな字・読み上げ。
+// 話した言葉は方言も言い直しもそのまま残す（標準語に書き換えない）。
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;          // 声の聞き取り（ブラウザの音声入力）
+let heard = '';          // まだ残していない言葉
+let listening = false;
+
+function savedTalks() {
+  const t = data.veteranTalk;
+  // 新しい話から上に
+  return [
+    ...store.get('talks', []).map((x) => ({ ...x, local: true })).reverse(),
+    { id: 'prepared', who: strip(t.speaker).split('（')[0], date: t.date, text: t.text },
+  ];
+}
+
 function renderTalk() {
   renderTop();
-  const t = data.veteranTalk;
+  const talks = savedTalks().map((x) => `
+    <div class="quote">
+      <div class="who-line">${esc(x.who)}さん・${esc(x.date)}${x.local ? '（この端末で残した話）' : ''}</div>
+      <p class="said">${esc(x.text)}</p>
+      <button class="say" data-say="${esc(x.id)}">${icon('speaker')}声で聞く</button>
+    </div>`).join('');
+
   view.innerHTML = `
-    <h1>経験を集める</h1>
-    <p class="lead" style="margin-top:-8px">ベテランが話すだけで、工程ごとの「手順」と「注意（なぜそうするか）」にまとまります。本人の言葉のまま残し、AI は足しません。</p>
+    <h1>話す</h1>
+    <p class="talk-lead">ボタンを押して、いつもの言葉で話してください。</p>
     <div class="center">
-      <button class="mic" disabled aria-label="話す（準備中）">${ICON.mic}</button>
-      <div class="muted">ボタンを押して話す（準備中）</div>
+      <button class="mic${SR ? '' : ' off'}" data-mic aria-pressed="${listening}" aria-label="押して話す">${listening ? ICON.stop : ICON.mic}</button>
+      <div class="mic-label" id="mic-label">${SR ? (listening ? '聞いています。終わったら、もう一度押す' : '押して話す') : 'この端末では声の入力が使えません。下に文字で入れてください'}</div>
     </div>
-    <h2>これまでに聞いた話</h2>
-    <div class="quote"><div class="who-line">${esc(strip(t.speaker))}さん・${esc(t.date)}</div>${esc(t.text)}</div>
-    <div class="pending">Claude をつなぐと、ここに工程ごとの「手順」と「注意」が並び、抜けている点を1つだけ聞き返します。準備中。</div>`;
+    <div class="heard"${heard ? '' : ' hidden'} id="heard">
+      <p class="said" id="heard-text">${esc(heard)}</p>
+      <button class="primary" data-talk-save>この言葉のまま残す</button>
+      <div class="row2">
+        <button class="outline" data-mic>続けて話す</button>
+        <button class="outline" data-talk-clear>残さずに消す</button>
+      </div>
+    </div>
+    <details class="type-in"${SR ? '' : ' open'}>
+      <summary>文字で入れる</summary>
+      <textarea class="talk" id="talk-text" rows="3" maxlength="2000" placeholder="例：朝はまず、わなの見回り。"></textarea>
+      <button class="outline wide" data-talk-type>この言葉のまま残す</button>
+    </details>
+    <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。</p>
+    <h2>残した話</h2>
+    ${talks}
+    <div class="pending">Claude をつなぐと、残した話を工程ごとの「手順」と「注意」にまとめ、抜けている点を<b>1つだけ</b>聞き返して、声で読み上げます。準備中。</div>`;
+}
+
+function showHeard() {
+  const box = document.getElementById('heard');
+  if (!box) return;
+  box.hidden = !heard;
+  document.getElementById('heard-text').textContent = heard;
+}
+
+function startListening() {
+  if (!SR) { document.getElementById('talk-text')?.focus(); return; }
+  if (listening) { rec?.stop(); return; }
+  rec = new SR();
+  rec.lang = 'ja-JP';
+  rec.continuous = true;
+  rec.interimResults = true;
+  const base = heard ? `${heard}　` : '';
+  rec.onresult = (ev) => {
+    let text = '';
+    for (const r of ev.results) text += r[0].transcript;
+    heard = base + text;
+    showHeard();
+  };
+  rec.onend = () => { listening = false; if (location.hash.startsWith('#/talk')) renderTalk(); };
+  rec.onerror = () => { listening = false; };
+  speechSynthesis?.cancel();
+  listening = true;
+  rec.start();
+  renderTalk();
+}
+
+function saveTalk(text) {
+  text = String(text || '').trim();
+  if (!text) return;
+  const talks = store.get('talks', []);
+  talks.push({ id: `talk-${Date.now()}`, who: strip(data.veteranTalk.speaker).split('（')[0], date: new Date().toLocaleDateString('sv-SE'), text });
+  store.set('talks', talks);
+  heard = '';
+  renderTalk();
+}
+
+// 読み上げ（端末の声を使う。外には送らない）
+function speak(text, btn) {
+  if (!('speechSynthesis' in window)) return;
+  if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ja-JP';
+  u.rate = 0.9;
+  btn?.classList.add('on');
+  u.onend = u.onerror = () => btn?.classList.remove('on');
+  speechSynthesis.speak(u);
 }
 
 // ---------- 5 教えた記録 ----------
@@ -335,6 +423,7 @@ function downloadCsv(month) {
 // ---------- 切り替え ----------
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
+  if (name !== 'talk') { rec?.stop(); try { speechSynthesis.cancel(); } catch { /* 読み上げなし */ } }
   document.body.classList.remove('has-cta');
   const tab = TABS.some((t) => t.id === name) ? name : 'team';
   renderTabs(tab);
@@ -366,6 +455,23 @@ document.addEventListener('click', (e) => {
     const y = window.scrollY;
     renderCard(decide.dataset.decide.split(':')[0]);
     window.scrollTo(0, y);
+    return;
+  }
+
+  if (e.target.closest('[data-zoom]')) {
+    const on = document.body.classList.toggle('big');
+    store.set('bigText', on);
+    e.target.closest('[data-zoom]').setAttribute('aria-pressed', String(on));
+    return;
+  }
+  if (e.target.closest('[data-mic]')) { startListening(); return; }
+  if (e.target.closest('[data-talk-save]')) { rec?.stop(); saveTalk(heard); return; }
+  if (e.target.closest('[data-talk-clear]')) { rec?.stop(); heard = ''; showHeard(); return; }
+  if (e.target.closest('[data-talk-type]')) { saveTalk(document.getElementById('talk-text')?.value); return; }
+  const say = e.target.closest('[data-say]');
+  if (say) {
+    const t = savedTalks().find((x) => x.id === say.dataset.say);
+    if (t) speak(t.text, say);
     return;
   }
 
@@ -444,6 +550,7 @@ document.addEventListener('submit', (e) => {
 });
 
 window.addEventListener('hashchange', route);
+if (store.get('bigText', false)) document.body.classList.add('big');
 
 load().then(route).catch((err) => {
   view.innerHTML = `<p>${esc(err.message)}</p>`;
