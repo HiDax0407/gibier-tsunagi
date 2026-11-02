@@ -29,3 +29,14 @@ test('すべての工程に資格の区分の印がある', () => {
   const team = buildTeam(loadRaw());
   for (const r of team.rows) assert.ok(['needs_check', 'no_license'].includes(r.license), r.role);
 });
+
+test('募集カードの道のりは4段（今日から→資格の確認→先輩と二人で→一人で）', () => {
+  const team = buildTeam(loadRaw());
+  assert.deepEqual(team.pathSteps, ['今日からできること', '資格の確認', '先輩と二人で', '一人で']);
+  for (const c of team.cards) assert.equal(c.path.length, 4, c.role);
+});
+
+test('止まる役割から、その役割の募集カードへつながる', () => {
+  const team = buildTeam(loadRaw());
+  for (const r of team.risks) assert.ok(r.cardId, r.role);
+});

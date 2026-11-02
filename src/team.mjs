@@ -26,7 +26,8 @@ export function stopRisks(rows) {
     .map((r) => ({
       role: r.role,
       coverage: r.coverage,
-      reason: r.coverage === 'empty' ? '担当している人がいない' : `${r.people[0]}さん1人だけ。休むと止まる`,
+      person: r.coverage === 'single' ? r.people[0] : null,
+      reason: r.coverage === 'empty' ? '担当している人がいない' : `担当が${r.people[0]}さん1人だけ`,
     }));
 }
 
@@ -52,18 +53,22 @@ export function buildTeam({ prepared, roles }) {
       .map((h) => ({ name: h.volunteer, conditions: volunteers[h.volunteer]?.conditions || '' })),
   }));
 
+  const cardByRole = Object.fromEntries(cards.map((c) => [c.role, c.id]));
+  const risks = stopRisks(rows).map((r) => ({ ...r, cardId: cardByRole[r.role] || null }));
+
   return {
     area: prepared.area,
     veteranTalk: prepared.veteran_talk,
     members: prepared.members,
     rows,
-    risks: stopRisks(rows),
+    risks,
     goal: {
       ...roles.goal,
       progress: { ok: okCount, total: rows.length },
     },
     licenseLabels: roles.license_labels,
     licenseCheckNote: roles.license_check_note,
+    pathSteps: roles.path_steps,
     cards,
   };
 }

@@ -3,26 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <title>ジビエつなぎ</title>
 <meta name="description" content="ベテラン猟師の経験を話すだけで集め、新しく入る人の一人前までの道のりを迷わず短くする。データはすべて架空。">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="top">
-  <div class="brand">ジビエつなぎ</div>
-  <div class="area" id="area"></div>
-</header>
+<header class="top" id="top"></header>
 
 <main id="view" aria-live="polite"></main>
 
-<p class="fiction">人名・地名・数字はすべて架空のデモです。資格・法令・衛生の決まりは、このアプリは答えません。</p>
+<p class="fiction">人名・地名・数字はすべて架空のデモです。写真は AI で生成した架空の場面です。資格・法令・衛生の決まりは、このアプリは答えません。</p>
 
-<nav class="tabs" aria-label="画面の切り替え">
-  <a href="#/talk" data-tab="talk"><span class="n">1</span>経験を集める</a>
-  <a href="#/team" data-tab="team"><span class="n">2</span>チームの表</a>
-  <a href="#/risk" data-tab="risk"><span class="n">3</span>止まる役割</a>
-  <a href="#/cards" data-tab="cards"><span class="n">4</span>募集カード</a>
-</nav>
+<nav class="tabs" aria-label="画面の切り替え" id="tabs"></nav>
 
 <script type="module" src="/app.js"></script>
 </body>
