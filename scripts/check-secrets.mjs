@@ -3,6 +3,7 @@
 // 使い方:
 //   node scripts/check-secrets.mjs --staged   … コミット予定のファイルを調べる（git の pre-commit から呼ぶ）
 //   node scripts/check-secrets.mjs --worktree … コミットされうる全ファイル（.gitignore で除いたもの以外）を調べる
+//   node scripts/check-secrets.mjs --push     … push で送るコミットを1つずつ調べる（git の pre-push から呼ぶ・標準入力で範囲を受け取る）
 //   node scripts/check-secrets.mjs <file...>  … 指定したファイルを調べる
 // 見つかったら終了コード 1 で止める。
 import { execFileSync } from 'node:child_process';
@@ -52,7 +53,50 @@ function stagedContent(path) {
   return execFileSync('git', ['show', `:${path}`], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
 }
 
+const ZERO = /^0+$/;
+
+// pre-push の標準入力（<local ref> <local sha> <remote ref> <remote sha>）から、送るコミットを並べる
+export function pushCommits(stdinText) {
+  const shas = new Set();
+  for (const line of stdinText.split('\n').filter(Boolean)) {
+    const [, localSha, , remoteSha] = line.trim().split(/\s+/);
+    if (!localSha || ZERO.test(localSha)) continue; // 消すだけの push
+    const range = remoteSha && !ZERO.test(remoteSha) ? [`${remoteSha}..${localSha}`] : [localSha, '--not', '--remotes'];
+    const out = execFileSync('git', ['rev-list', ...range], { encoding: 'utf8' });
+    out.split('\n').filter(Boolean).forEach((s) => shas.add(s));
+  }
+  return [...shas];
+}
+
+function scanCommits(shas) {
+  let problems = 0;
+  for (const sha of shas) {
+    const files = execFileSync('git', ['diff-tree', '-r', '--root', '--no-commit-id', '--name-only', '--diff-filter=ACMR', sha], { encoding: 'utf8' })
+      .split('\n').filter(Boolean);
+    for (const f of files) {
+      const where = `${sha.slice(0, 7)} ${f}`;
+      if (isBlockedName(f)) { console.error(`✖ ${where}：秘密情報のファイルは送れません`); problems++; continue; }
+      if (f === 'scripts/check-secrets.mjs' || f.startsWith('tests/')) continue;
+      let text;
+      try { text = execFileSync('git', ['show', `${sha}:${f}`], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 }); } catch { continue; }
+      for (const h of scanText(text)) { console.error(`✖ ${where}:${h.line}：${h.kind}らしき文字列`); problems++; }
+    }
+  }
+  return problems;
+}
+
 function main(argv) {
+  if (argv.includes('--push')) {
+    let input = '';
+    try { input = readFileSync(0, 'utf8'); } catch { /* 入力なし */ }
+    const problems = scanCommits(pushCommits(input));
+    if (problems) {
+      console.error(`\n送ろうとしているコミットに、秘密情報らしきものが ${problems} か所あります。push を止めました。`);
+      process.exit(1);
+    }
+    return;
+  }
+
   const staged = argv.includes('--staged');
   const files = staged ? stagedFiles() : argv.includes('--worktree') ? worktreeFiles() : argv.filter((a) => !a.startsWith('--'));
   let problems = 0;
