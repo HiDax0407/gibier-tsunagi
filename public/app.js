@@ -1,7 +1,7 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
-import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr } from './ui.js';
+import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi } from './ui.js';
 import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 import { districtTotals } from './lib/log.js';
@@ -21,6 +21,7 @@ async function load() {
   const res = await fetch('/api/team');
   if (!res.ok) throw new Error('データを読めませんでした');
   data = ctx.data = await res.json();
+  await loadAi();
 }
 
 // ---------- 上の帯と下のタブ ----------
@@ -238,19 +239,17 @@ function renderTalk() {
   const q = nextQuestion(talkTexts(), steps);
   const missing = cover.filter((c) => !c.heard);
   const talks = savedTalks().map((x) => {
-    const sp = splitTejun(x.text);
-    const li = (list) => list.map((t) => `<li>${esc(t)}</li>`).join('') || '<li class="muted">（なし）</li>';
+    const sp = aiCache.split.get(x.id) || splitTejun(x.text);
     return `
     <div class="quote">
       <div class="who-line">${esc(x.who)}さん・${esc(x.date)}${x.local ? '（この端末で残した話）' : ''}</div>
       <p class="said">${esc(x.text)}</p>
-      <div class="split">
-        <div><h4>手順</h4><ul>${li(sp.tejun)}</ul></div>
-        <div class="c"><h4>注意</h4><ul>${li(sp.chui)}</ul></div>
-      </div>
-      <div class="ask-foot"><button class="say" data-say="${esc(x.id)}">${icon('speaker')}声で聞く</button>${aiTag('整理', 'Claude Opus 5.5')}</div>
+      <div class="split" data-split="${esc(x.id)}">${splitHtml(sp)}</div>
+      <div class="ask-foot"><button class="say" data-say="${esc(x.id)}">${icon('speaker')}声で聞く</button>${aiTag('整理', 'seiri')}</div>
     </div>`;
   }).join('');
+  const qKey = questionKey();
+  const qShown = aiCache.q.get(qKey) || q;
 
   view.innerHTML = `
     <h1>話す</h1>
@@ -276,17 +275,57 @@ function renderTalk() {
     <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。体のぐあいの話は残しません。</p>
     <h2 id="talks">残した話</h2>
     ${talks || '<p class="muted">まだありません。</p>'}
-    <section class="ask">
+    <section class="ask" data-q="${esc(qKey)}">
       <h3>次に聞くこと（1つだけ）</h3>
-      <p class="said">${esc(q.text)}</p>
-      ${q.said ? `<p class="muted" style="margin:-4px 0 8px">「${esc(q.said)}」の、どのくらいを聞きます。</p>` : ''}
-      <div class="ask-foot"><button class="say" data-say-q>${icon('speaker')}声で聞く</button><span class="muted">聞き方の型：${esc(q.kata)}</span>${aiTag('聞き返し', 'Claude Haiku 5.5＋聞き方の型')}</div>
+      <p class="said" id="q-text">${esc(qShown.text)}</p>
+      <p class="muted" id="q-said" style="margin:-4px 0 8px"${qShown.said ? '' : ' hidden'}>「${esc(qShown.said || '')}」の、どのくらいを聞きます。</p>
+      <div class="ask-foot"><button class="say" data-say-q>${icon('speaker')}声で聞く</button><span class="muted">聞き方の型：<span id="q-kata">${esc(qShown.kata)}</span></span>${aiTag('聞き返し', 'kikikaeshi', '＋聞き方の型')}</div>
       <form class="answer" data-answer><label>答える（話すか、文字で）</label>${voiceFieldLite('answer-text')}<button class="outline wide" type="submit">この答えを残す</button></form>
       <h3 style="margin-top:14px">まだ聞けていない工程</h3>
       <div class="steps">${cover.map((c) => `<span class="stp${c.heard ? ' on' : ''}">${c.heard ? '✓ ' : ''}${esc(c.step)}</span>`).join('')}</div>
       <p class="muted" style="margin:8px 0 0">${missing.length ? `${missing.length}つの工程が、まだ話に出ていません。` : 'すべての工程が話に出ました。次は、深く聞きます。'}今は言葉の照らし合わせで出しています。Claude をつなぐと、聞き方の型（失敗談・見分け方・どのくらい・昔と今・新人の間違い・話の食い違い）で、話の中身から1つだけ聞き返します。</p>
     </section>
-    <p class="muted">手順と注意は、今は言葉の照らし合わせで分けた見本です（本人の言葉のまま・言い換えない）。Claude をつなぐと、工程ごとに並べ、「なぜそうするか」を注意の横に置きます。</p>`;
+    <p class="muted">${AI.connected
+      ? '手順と注意は Claude が分けました。文は本人の言葉のままで、言い換えも足しもしません（型を守れていない返事は使わず、見本に戻します）。'
+      : '手順と注意は、今は言葉の照らし合わせで分けた見本です（本人の言葉のまま・言い換えない）。Claude をつなぐと、Claude が分けます。'}</p>`;
+  enrichTalk();
+}
+
+// ---------- Claude につながっているとき：残した話の整理と聞き返しを、Claude のものに差し替える ----------
+// 画面はまず見本（言葉の照らし合わせ）で出し、Claude の返事が届いたら置き換える。返事が型を守れていなければ見本のまま。
+const aiCache = { split: new Map(), q: new Map() };
+const splitHtml = (sp) => {
+  const li = (list) => list.map((t) => `<li>${esc(t)}</li>`).join('') || '<li class="muted">（なし）</li>';
+  return `<div><h4>手順</h4><ul>${li(sp.tejun)}</ul></div><div class="c"><h4>注意</h4><ul>${li(sp.chui)}</ul></div>`;
+};
+const questionKey = () => {
+  const texts = talkTexts();
+  return `${texts.length}-${texts.join('\n').length}`;
+};
+function enrichTalk() {
+  if (!AI.connected) return;
+  for (const x of savedTalks()) {
+    if (aiCache.split.has(x.id) || aiCache.split.get(x.id) === null) continue;
+    aiCache.split.set(x.id, null); // 頼んだ印（二重に頼まない）
+    askAi('seiri', { text: x.text }).then((sp) => {
+      aiCache.split.set(x.id, { tejun: sp.tejun, chui: sp.chui });
+      const el = document.querySelector(`[data-split="${CSS.escape(x.id)}"]`);
+      if (el) el.innerHTML = splitHtml(sp);
+    }).catch(() => aiCache.split.delete(x.id));
+  }
+  const key = questionKey();
+  if (aiCache.q.has(key)) return;
+  aiCache.q.set(key, null);
+  askAi('kikikaeshi', { texts: talkTexts(), steps: data.rows.map((r) => r.role) }).then((q) => {
+    aiCache.q.set(key, q);
+    const sec = document.querySelector('.ask');
+    if (!sec || sec.dataset.q !== key) return;
+    document.getElementById('q-text').textContent = q.text;
+    document.getElementById('q-kata').textContent = q.kata;
+    const said = document.getElementById('q-said');
+    said.hidden = !q.said;
+    said.textContent = q.said ? `「${q.said}」の、どのくらいを聞きます。` : '';
+  }).catch(() => aiCache.q.delete(key));
 }
 
 // 答える欄（話す画面の聞き返しの下）
@@ -575,8 +614,7 @@ document.addEventListener('click', (e) => {
     return;
   }
   if (e.target.closest('[data-say-q]')) {
-    const steps = data.rows.map((r) => r.role);
-    speak(nextQuestion(talkTexts(), steps).text, e.target.closest('[data-say-q]'));
+    speak(document.getElementById('q-text')?.textContent || '', e.target.closest('[data-say-q]'));
     return;
   }
   if (e.target.closest('[data-town-csv]')) { townCsv(); return; }

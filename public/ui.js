@@ -61,11 +61,25 @@ export function agoLabel(iso, now = Date.now()) {
 }
 
 // ---------- Claude が働くところの小さな印 ----------
-// 今は Claude につないでいない（キーは社長が置いてから・リポジトリには入れない）。
-// つなぐまでは「見本（未接続）」と出し、決まった照らし合わせで動かす。
-export const AI = { connected: false };
-export const aiTag = (role, model) =>
-  `<span class="ai-tag">${esc(role)}：${AI.connected ? esc(model) : '見本（未接続）'}</span>`;
+// つながっているかはサーバーが決める（キーは環境変数か .env・リポジトリには入れない）。
+// つなぐまでは「見本（未接続）」と出し、決まった照らし合わせで動かす。つなぐと役とモデルの名前に変わる。
+export const AI = { connected: false, models: {} };
+export const aiTag = (role, task, suffix = '') =>
+  `<span class="ai-tag">${esc(role)}：${AI.connected ? esc((AI.models[task] || 'Claude') + suffix) : '見本（未接続）'}</span>`;
+export async function loadAi() {
+  try {
+    const r = await fetch('/api/ai/status');
+    if (r.ok) Object.assign(AI, await r.json());
+  } catch { /* 未接続のまま */ }
+  return AI;
+}
+// Claude に頼む（整理・聞き返し）。うまくいかなければ投げる（呼ぶ側は見本のまま）
+export async function askAi(task, payload) {
+  const r = await fetch(`/api/ai/${task}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || `返事がありません（${r.status}）`);
+  return body;
+}
 
 // ---------- 書き出し ----------
 export function downloadCsv(name, csv) {
