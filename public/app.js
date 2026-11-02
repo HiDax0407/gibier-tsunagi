@@ -1,39 +1,30 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
-import { countDistrict, townRows } from './lib/town.js';
-import { monthOf, shiftMonth, monthLabel, isConfirmed, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
-
-const view = document.getElementById('view');
-const top = document.getElementById('top');
-const tabs = document.getElementById('tabs');
-
-// この端末だけに残すもの（手を挙げた人の追加・チームの決定・ゴールの印）。使えない環境でも画面は動く
-const store = {
-  get(key, fallback) {
-    try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
-  },
-  set(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* 保存できなくても続ける */ }
-  },
-};
-
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const strip = (name) => String(name).replace(/（架空）/g, '').trim();
-const icon = (name) => `<span class="ico">${ICON[name] || ''}</span>`;
-const roleIcon = (role) => icon(ROLE_ICON[role] || 'doc');
+import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice } from './ui.js';
+import { countDistrict, townRows, townTotals } from './lib/town.js';
+import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
+import { districtTotals } from './lib/log.js';
+import { splitHealth } from './lib/watch.js';
+import { stepCoverage, nextQuestion } from './lib/kikikata.js';
+import { toCsvText } from './lib/csv.js';
+import { logs, reports, markSpoke } from './model.js';
+import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
+import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit } from './screens/log.js';
+import { renderWatch, watchClick } from './screens/watch.js';
 
 let data;
 
 async function load() {
   const res = await fetch('/api/team');
   if (!res.ok) throw new Error('データを読めませんでした');
-  data = await res.json();
+  data = ctx.data = await res.json();
 }
 
 // ---------- 上の帯と下のタブ ----------
 const TABS = [
   { id: 'talk', label: '話す', icon: 'mic' },
+  { id: 'map', label: 'わな', icon: 'pin' },
   { id: 'team', label: 'チーム', icon: 'team' },
   { id: 'risk', label: '止まる役割', icon: 'alert' },
   { id: 'cards', label: '募集', icon: 'card' },
@@ -43,17 +34,6 @@ const TABS = [
 function renderTabs(current) {
   tabs.innerHTML = TABS.map((t) =>
     `<a href="#/${t.id}" ${t.id === current ? 'aria-current="page"' : ''}>${icon(t.icon)}${t.label}</a>`).join('');
-}
-
-function renderTop({ back, here } = {}) {
-  if (back) {
-    top.className = 'top line';
-    top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}ジビエつなぎ</a>${here ? `<span class="here">${esc(here)}</span>` : ''}`;
-  } else {
-    top.className = 'top';
-    top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area">${esc(data.area.name)}</span>
-      <button class="zoom" data-zoom aria-pressed="${document.body.classList.contains('big')}">大きな字</button>`;
-  }
 }
 
 function licensePill(license, { big = false, sm = false } = {}) {
@@ -101,7 +81,9 @@ function renderTeam() {
       <img src="/img/photo_03_shokudo.jpg" alt="山あいの食堂に並ぶ鹿肉の煮込み定食（AI で生成した架空の場面）" loading="lazy">
       <figcaption>ゴール：地域の名産として出せる状態。この先に、新しく入る人が増える・農村の被害が減る・ジビエが普段の食べものになる。（写真は AI で生成した架空の場面）</figcaption>
     </figure>
-    <button class="outline wide" data-go="town" style="margin-top:20px">${icon('town')}町の地区一覧（町の担当の方向け）</button>`;
+    <button class="outline wide" data-go="watch" style="margin-top:20px">${icon('clock')}見守り（話していない日が続いたら知らせる）</button>
+    <button class="outline wide" data-go="town" style="margin-top:12px">${icon('town')}町の地区一覧（町の担当の方向け）</button>
+    <button class="link reset" data-reset>デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
 }
 
 // ---------- 3 止まる役割 ----------
@@ -127,7 +109,8 @@ function renderRisk() {
   for (const [person, list] of byPerson) html += `<h1>${esc(person)}さんが休むと<br>止まる役割</h1>${list.map(card).join('')}`;
   if (empty.length) html += `<h2>担当がいない役割</h2>${empty.map(card).join('')}`;
   view.innerHTML = `${html}
-    <div class="pending">Claude をつなぐと、ベテランの話から理由が足されます（例：店の連絡先を岩田さんしか知らない）。準備中。</div>`;
+    <div class="pending">Claude をつなぐと、ベテランの話から理由が足されます（例：店の連絡先を岩田さんしか知らない）。準備中。</div>
+    <button class="outline wide" data-go="watch" style="margin-top:16px">${icon('clock')}見守り：話していない日が続いたら知らせる</button>`;
 }
 
 // ---------- 4 募集カード（一覧） ----------
@@ -207,10 +190,10 @@ function renderCard(id) {
 // ---------- 1 経験を集める（高齢の猟師さんが使える形） ----------
 // 押して話すだけ・ログインなし・大きな字・読み上げ。
 // 話した言葉は方言も言い直しもそのまま残す（標準語に書き換えない）。
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let rec = null;          // 声の聞き取り（ブラウザの音声入力）
 let heard = '';          // まだ残していない言葉
 let listening = false;
+let healthDropped = 0;   // 残さなかった体のぐあいの話の文の数（中身は持たない）
 
 function savedTalks() {
   const t = data.veteranTalk;
@@ -221,8 +204,16 @@ function savedTalks() {
   ];
 }
 
+function talkTexts() {
+  return savedTalks().map((x) => x.text);
+}
+
 function renderTalk() {
   renderTop();
+  const steps = data.rows.map((r) => r.role);
+  const cover = stepCoverage(talkTexts(), steps);
+  const q = nextQuestion(talkTexts(), steps);
+  const missing = cover.filter((c) => !c.heard);
   const talks = savedTalks().map((x) => `
     <div class="quote">
       <div class="who-line">${esc(x.who)}さん・${esc(x.date)}${x.local ? '（この端末で残した話）' : ''}</div>
@@ -250,10 +241,19 @@ function renderTalk() {
       <textarea class="talk" id="talk-text" rows="3" maxlength="2000" placeholder="例：朝はまず、わなの見回り。"></textarea>
       <button class="outline wide" data-talk-type>この言葉のまま残す</button>
     </details>
-    <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。</p>
+    ${healthDropped ? `<div class="hnote">体のぐあいの話（${healthDropped}文）は残しませんでした。見守りは、話した日だけを見ます。</div>` : ''}
+    <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。体のぐあいの話は残しません。</p>
+    <section class="ask">
+      <h3>次に聞くこと（1つだけ）</h3>
+      <p class="said">${esc(q.text)}</p>
+      <div class="ask-foot"><button class="say" data-say-q>${icon('speaker')}声で聞く</button><span class="muted">聞き方の型：${esc(q.kata)}</span></div>
+      <h3 style="margin-top:14px">まだ聞けていない工程</h3>
+      <div class="steps">${cover.map((c) => `<span class="stp${c.heard ? ' on' : ''}">${c.heard ? '✓ ' : ''}${esc(c.step)}</span>`).join('')}</div>
+      <p class="muted" style="margin:8px 0 0">${missing.length ? `${missing.length}つの工程が、まだ話に出ていません。` : 'すべての工程が話に出ました。次は、深く聞きます。'}今は言葉の照らし合わせで出しています。Claude をつなぐと、聞き方の型（失敗談・見分け方・どのくらい・昔と今・新人の間違い・話の食い違い）で、話の中身から1つだけ聞き返します。</p>
+    </section>
     <h2>残した話</h2>
     ${talks}
-    <div class="pending">Claude をつなぐと、残した話を工程ごとの「手順」と「注意」にまとめ、抜けている点を<b>1つだけ</b>聞き返して、声で読み上げます。準備中。</div>`;
+    <div class="pending">Claude をつなぐと、残した話を工程ごとの「手順」と「注意」にまとめます。準備中。</div>`;
 }
 
 function showHeard() {
@@ -286,40 +286,24 @@ function startListening() {
 }
 
 function saveTalk(text) {
-  text = String(text || '').trim();
-  if (!text) return;
-  const talks = store.get('talks', []);
-  talks.push({ id: `talk-${Date.now()}`, who: strip(data.veteranTalk.speaker).split('（')[0], date: new Date().toLocaleDateString('sv-SE'), text });
-  store.set('talks', talks);
+  // 体のぐあいの話の文は残さない（数だけ伝え、中身は持たない）
+  const { kept, dropped } = splitHealth(String(text || '').trim());
+  healthDropped = dropped.length;
   heard = '';
+  const who = strip(data.veteranTalk.speaker).split('（')[0];
+  if (kept) {
+    const talks = store.get('talks', []);
+    talks.push({ id: `talk-${Date.now()}`, who, date: todayStr(), text: kept });
+    store.set('talks', talks);
+    markSpoke(who);
+  }
   renderTalk();
-}
-
-// 読み上げ（端末の声を使う。外には送らない）
-function speak(text, btn) {
-  if (!('speechSynthesis' in window)) return;
-  if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ja-JP';
-  u.rate = 0.9;
-  btn?.classList.add('on');
-  u.onend = u.onerror = () => btn?.classList.remove('on');
-  speechSynthesis.speak(u);
+  healthDropped = 0;
 }
 
 // ---------- 5 教えた記録 ----------
 // 一緒にやった日・工程・相手を残し、ベテラン本人とチームが「はい」で確かめる。
 // 金額は決めない・お金は動かさない・教え方に点数をつけない。
-const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
-const dayLabel = (date) => {
-  const [y, m, d] = date.split('-').map(Number);
-  return `${m}月${d}日（${WEEK[new Date(y, m - 1, d).getDay()]}）`;
-};
-const todayStr = () => {
-  const t = new Date();
-  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
-};
-
 // データの記録＋この端末で足した記録に、この端末で押した「はい」を重ねる
 function teachRecords() {
   const oks = store.get('teachOk', {});
@@ -411,28 +395,25 @@ function teachForm(month) {
 }
 
 function downloadCsv(month) {
-  const csv = toCsv(recordsForMonth(teachRecords(), month));
-  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `教えた記録_${month}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  saveCsv(`教えた記録_${month}.csv`, toCsv(recordsForMonth(teachRecords(), month)));
 }
 
 // ---------- 6 町の画面（町の担当の方向け） ----------
 // 地区ごとの数だけを出す。個人名は出さない。
 function renderTown() {
   renderTop({ back: '#/team', here: '町の地区一覧' });
-  const live = countDistrict({
-    rows: data.rows,
-    cards: data.cards.map((c) => ({ hands: handsFor(c) })),
-    records: teachRecords(),
-    experienceRoles: data.experienceRoles,
-  });
+  const live = {
+    ...countDistrict({
+      rows: data.rows,
+      cards: data.cards.map((c) => ({ hands: handsFor(c) })),
+      records: teachRecords(),
+      experienceRoles: data.experienceRoles,
+    }),
+    ...districtTotals(logs(), data.homeDistrict),
+    reports: reports().filter((r) => r.district === data.homeDistrict).length,
+  };
   const rows = townRows(data.town.districts, live);
+  const totals = townTotals(rows);
   const num = (n, unit, label, sub = '') => `<div class="tn"><b>${n}<small>${unit}</small></b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</div>`;
   const cards = rows.map((d) => `
     <article class="dist">
@@ -443,8 +424,18 @@ function renderTown() {
         ${num(d.hands, '人', '手を挙げた人')}
         ${num(d.teach, '回', '教えた回数', '確かめ済み')}
       </div>
+      <div class="tgrid sub">
+        ${num(d.deer, '頭', 'シカ')}
+        ${num(d.boar, '頭', 'イノシシ')}
+        ${num(d.patrol, '回', '見回り')}
+        ${num(d.reports, '件', '住民の知らせ')}
+      </div>
     </article>`).join('');
+  const trow = (r, th = 'td') => `<tr><${th}>${esc(r.name)}</${th}><td>${r.deer}</td><td>${r.boar}</td><td>${r.patrol}</td><td>${r.reports}</td></tr>`;
+  const sumTable = `<table class="sum"><thead><tr><th>地区</th><th>シカ（頭）</th><th>イノシシ（頭）</th><th>見回り（回）</th><th>住民の知らせ（件）</th></tr></thead>
+    <tbody>${totals.rows.map((r) => trow(r)).join('')}${trow({ name: '合計', ...totals.total }, 'th')}</tbody></table>`;
   view.innerHTML = `
+    <div class="no-print">
     <p class="kicker">町の担当の方向け</p>
     <h1>${esc(strip(data.town.name))}の<br>地区一覧</h1>
     <p class="lead">地区ごとの数だけを出します。個人名は出しません。</p>
@@ -452,21 +443,51 @@ function renderTown() {
     <ul class="notes">
       <li>北沢地区の数は、チームの表・募集カード・教えた記録から数えています。南沢・東原は画面を見せるための架空の数です。</li>
       <li>「経験が残った工程」は、話す画面で残した話を Claude が工程ごとにまとめてから数えます（準備中のため、北沢は今 0）。</li>
+      <li>シカ・イノシシ・見回りの数は、チームが確かめて「町へ出す」を押した記録だけを数えます。住民の知らせは件数だけです。</li>
       <li>計画の見直しや報告の材料に使えるかは、町の窓口で確かめてください（要確認）。</li>
-    </ul>`;
+    </ul>
+    <h2>県へ上げる数の下書き</h2>
+    <p class="muted" style="margin-top:-6px">地区ごとの数と合計です。個人名は出しません。交付金・報償金の対象かどうかと金額は判断しません。</p>
+    <div class="tscroll">${sumTable}</div>
+    <div class="row2">
+      <button class="outline" data-print>印刷する</button>
+      <button class="outline" data-town-csv>書き出す（CSV）</button>
+    </div>
+    </div>
+    <section class="print-only">
+      <h1>県へ上げる数の下書き　${esc(strip(data.town.name))}</h1>
+      ${sumTable}
+      <p>町の確認者（署名）＿＿＿＿＿＿＿＿＿＿　　確認日＿＿＿＿＿＿</p>
+      <p class="small">チームが確かめて町へ出した記録の数です。町名・地区名・数はすべて架空のデモです。</p>
+    </section>`;
+}
+
+function townCsv() {
+  const live = { ...districtTotals(logs(), data.homeDistrict), reports: reports().filter((r) => r.district === data.homeDistrict).length };
+  const { rows, total } = townTotals(townRows(data.town.districts, live));
+  const line = (r) => [r.name, r.deer, r.boar, r.patrol, r.reports];
+  saveCsv('県へ上げる数の下書き.csv', toCsvText(['地区', 'シカ（頭）', 'イノシシ（頭）', '見回り（回）', '住民の知らせ（件）'], [...rows.map(line), line({ name: '合計', ...total })]));
 }
 
 // ---------- 切り替え ----------
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
-  if (name !== 'talk') { rec?.stop(); try { speechSynthesis.cancel(); } catch { /* 読み上げなし */ } }
+  if (name !== 'talk') rec?.stop();
+  voice.stop();
+  try { speechSynthesis.cancel(); } catch { /* 読み上げなし */ }
+  if (name !== 'map') leaveMap();
   document.body.classList.remove('has-cta');
-  const tab = TABS.some((t) => t.id === name) ? name : 'team';
+  // タブのない画面は、つながっているタブを光らせる
+  const parent = { log: 'map', report: 'map', watch: 'team', town: 'team' }[name];
+  const tab = TABS.some((t) => t.id === name) ? name : parent || 'team';
   renderTabs(tab);
   if (name === 'cards' && arg) renderCard(arg);
   else if (name === 'teach') renderTeach(arg);
   else if (name === 'town') renderTown();
-  else ({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk }[tab])();
+  else if (name === 'log') renderLog(arg);
+  else if (name === 'report') renderReport();
+  else if (name === 'watch') renderWatch();
+  else ({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk, map: renderMap }[tab])();
   window.scrollTo(0, 0);
 }
 
@@ -474,6 +495,30 @@ function route() {
 document.addEventListener('click', (e) => {
   const go = e.target.closest('[data-go]');
   if (go) { location.hash = `#/${go.dataset.go}`; return; }
+  if (mapClick(e) || logClick(e) || reportClick(e) || watchClick(e)) return;
+
+  // 地図・記録・住民の知らせの「押して話す」
+  const vb = e.target.closest('[data-voice]');
+  if (vb) {
+    const field = document.getElementById(vb.dataset.voice);
+    voice.toggle(vb, field, () => { if (vb.dataset.voice === 'patrol-text') showParse(); if (vb.dataset.voice === 'log-text') showLogParse(); });
+    return;
+  }
+  if (e.target.closest('[data-say-q]')) {
+    const steps = data.rows.map((r) => r.role);
+    speak(nextQuestion(talkTexts(), steps).text, e.target.closest('[data-say-q]'));
+    return;
+  }
+  if (e.target.closest('[data-town-csv]')) { townCsv(); return; }
+  if (e.target.closest('[data-reset]')) {
+    if (!confirm('この端末で足した記録・押した「はい」・設定を消して、デモを最初の状態に戻します。よろしいですか？')) return;
+    for (const k of ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet']) {
+      try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
+    }
+    toast('デモを最初の状態に戻しました。');
+    route();
+    return;
+  }
 
   const goal = e.target.closest('[data-goal]');
   if (goal) {
@@ -556,6 +601,7 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('submit', (e) => {
+  if (mapSubmit(e) || logSubmit(e) || reportSubmit(e)) return;
   const tf = e.target.closest('form.teach');
   if (tf) {
     e.preventDefault();
@@ -584,6 +630,13 @@ document.addEventListener('submit', (e) => {
   store.set('addedHands', added);
   renderCard(form.dataset.card);
   document.querySelector('.hands')?.scrollIntoView({ block: 'start' });
+});
+
+document.addEventListener('change', (e) => { if (mapChange(e)) return; logChange(e); });
+// 文字で入れたときも、拾えたものを見せ直す
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'patrol-text') showParse();
+  if (e.target.id === 'log-text') showLogParse();
 });
 
 window.addEventListener('hashchange', route);

@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { surname } from '../public/lib/names.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -11,7 +12,10 @@ export function loadRaw() {
   const roles = JSON.parse(readFileSync(join(root, 'data/kitazawa_roles.json'), 'utf8'));
   const teach = JSON.parse(readFileSync(join(root, 'data/teach_records.json'), 'utf8'));
   const town = JSON.parse(readFileSync(join(root, 'data/town.json'), 'utf8'));
-  return { prepared, roles, teach, town };
+  const traps = JSON.parse(readFileSync(join(root, 'data/traps.json'), 'utf8'));
+  const activity = JSON.parse(readFileSync(join(root, 'data/activity_log.json'), 'utf8'));
+  const watch = JSON.parse(readFileSync(join(root, 'data/watch.json'), 'utf8'));
+  return { prepared, roles, teach, town, traps, activity, watch };
 }
 
 // 担当の人数から状態を決める：空き／1人だけ／2人以上
@@ -33,10 +37,18 @@ export function stopRisks(rows) {
     }));
 }
 
-// 「岩田 勝（架空）」→「岩田」
-export const surname = (name) => String(name).replace(/（架空）/g, '').trim().split(/\s+/)[0];
+export { surname };
 
-export function buildTeam({ prepared, roles, teach = { records: [] }, town = { town: '', districts: [] } }) {
+const EMPTY_TRAPS = { center: [35, 135], zoom: 14, stale_hours_default: 36, stale_hours_choices: [36], traps: [] };
+
+export function buildTeam({
+  prepared, roles,
+  teach = { records: [] },
+  town = { town: '', districts: [] },
+  traps = EMPTY_TRAPS,
+  activity = { logs: [], reports: [] },
+  watch = { people: [] },
+}) {
   const rows = prepared.current_roles.map((r) => {
     const meta = roles.roles[r.role] || {};
     return {
@@ -64,7 +76,8 @@ export function buildTeam({ prepared, roles, teach = { records: [] }, town = { t
   return {
     area: prepared.area,
     veteranTalk: prepared.veteran_talk,
-    members: prepared.members,
+    // 名簿は名前だけを出す（体のぐあいなどのメモは画面に送らない）
+    members: prepared.members.map((m) => ({ name: m.name })),
     rows,
     risks,
     goal: {
@@ -85,5 +98,19 @@ export function buildTeam({ prepared, roles, teach = { records: [] }, town = { t
     experienceRoles: roles.experience_recorded || [],
     // 町の画面（数だけ。北沢地区は画面側でこのデータから数える）
     town: { name: town.town, districts: town.districts },
+    // わなの地図（チームの中だけで見る）。担当と「二人で行く」相手はチームが決めた組み合わせ
+    traps: {
+      center: traps.center,
+      zoom: traps.zoom,
+      staleHoursDefault: traps.stale_hours_default,
+      staleHoursChoices: traps.stale_hours_choices,
+      list: traps.traps,
+    },
+    homeDistrict: 'kitazawa',
+    // 活動と捕獲の記録・住民の通報
+    logs: activity.logs,
+    reports: activity.reports,
+    // 見守り：最後に話した日と、本人が決めた知らせ先だけ
+    watch: watch.people.map((p) => ({ name: p.name, spokeDaysAgo: p.spokeDaysAgo, afterDays: p.afterDays, notify: p.notify })),
   };
 }

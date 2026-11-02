@@ -16,6 +16,13 @@ export function countDistrict({ rows, cards, records, experienceRoles = [] }) {
   };
 }
 
+// 県へ上げる数の下書き：地区ごとの数と合計（数だけ）
+export function townTotals(rows) {
+  const keys = ['deer', 'boar', 'patrol', 'reports'];
+  const total = Object.fromEntries(keys.map((k) => [k, rows.reduce((n, r) => n + (Number(r[k]) || 0), 0)]));
+  return { rows: rows.map((r) => ({ name: r.name, ...Object.fromEntries(keys.map((k) => [k, r[k] ?? 0])) })), total };
+}
+
 // 町の画面に渡す形：数と地区名だけ
 export function townRows(districts, liveCounts) {
   return districts.map((d) => {
@@ -23,6 +30,7 @@ export function townRows(districts, liveCounts) {
     return {
       id: d.id, name: d.name, live: !!d.live,
       roles: n.roles, single: n.single, empty: n.empty, experience: n.experience, hands: n.hands, teach: n.teach,
+      deer: n.deer ?? 0, boar: n.boar ?? 0, patrol: n.patrol ?? 0, reports: n.reports ?? 0,
     };
   });
 }

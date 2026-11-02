@@ -1,0 +1,8 @@
+{
+  "_note": "2026-11-02 期間中に作成。見守りのデモデータ。人名・日数はすべて架空。spokeDaysAgo＝最後に話してから何日か（画面を開いた日から数える）。afterDays と notify は本人と家族・チームで決める設定。体調の情報は持たない（健康の話は記録しない）。",
+  "people": [
+    { "name": "岩田", "spokeDaysAgo": 4, "afterDays": 3, "notify": ["家族", "チーム"] },
+    { "name": "佐伯", "spokeDaysAgo": 1, "afterDays": 5, "notify": ["チーム"] },
+    { "name": "小川", "spokeDaysAgo": 0, "afterDays": 3, "notify": [] }
+  ]
+}

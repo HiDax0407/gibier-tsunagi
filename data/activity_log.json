@@ -1,0 +1,15 @@
+{
+  "_note": "2026-11-02 期間中に作成。活動と捕獲の記録・住民の通報のデモデータ。日時・わな・人名・地区・頭数はすべて架空。写真はデモでは載せない（photo は『添付あり』の印だけ）。抜けチェックを見せるため、写真なし・頭数なし・確認待ちの記録をわざと入れてある。",
+  "logs": [
+    { "id": "a1", "datetime": "2026-10-20T06:50", "kind": "見回り", "trapNo": 1, "district": "kitazawa", "by": "岩田", "photo": false, "teamOk": true, "sent": true, "text": "1番から7番まで見た。何もなし。" },
+    { "id": "a2", "datetime": "2026-10-22T07:10", "kind": "捕獲", "trapNo": 3, "district": "kitazawa", "species": "シカ", "count": 1, "by": "佐伯", "photo": true, "teamOk": true, "sent": true, "text": "3番にシカが1頭かかっとった。" },
+    { "id": "a3", "datetime": "2026-10-27T06:40", "kind": "捕獲", "trapNo": 5, "district": "kitazawa", "species": "イノシシ", "count": 1, "by": "岩田", "photo": true, "teamOk": true, "sent": true, "text": "5番、イノシシ1頭。" },
+    { "id": "a4", "datetime": "2026-10-30T07:00", "kind": "見回り", "trapNo": 2, "district": "kitazawa", "by": "岩田", "photo": false, "teamOk": true, "sent": false, "text": "2番は空やった。" },
+    { "id": "a5", "datetime": "2026-11-01T06:55", "kind": "捕獲", "trapNo": 7, "district": "kitazawa", "species": "シカ", "count": null, "by": "岩田", "photo": false, "teamOk": false, "sent": false, "text": "7番にシカがかかっとった。" },
+    { "id": "a6", "datetime": null, "kind": "出動", "trapNo": 4, "district": "kitazawa", "by": "佐伯", "photo": false, "teamOk": false, "sent": false, "text": "4番の知らせで向かった。" }
+  ],
+  "reports": [
+    { "id": "r1", "datetime": "2026-11-01T17:20", "district": "kitazawa", "kind": "被害", "text": "畑のいもが掘られとった。", "photo": false, "seen": false },
+    { "id": "r2", "datetime": "2026-10-29T18:05", "district": "minamisawa", "kind": "出没", "text": "夕方、道の向こうに2頭見えた。", "photo": false, "seen": true }
+  ]
+}

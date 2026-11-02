@@ -1,9 +1,39 @@
 {
-  "_note": "2026-11-02 期間中に作成。町の画面のデモデータ。町名・地区名・数字はすべて架空。北沢地区はチームのデータから数える。南沢・東原は画面を見せるための架空の数。町の画面には数だけを出し、個人名は出さない。",
+  "_note": "2026-11-02 期間中に作成。町の画面のデモデータ。町名・地区名・数字はすべて架空。北沢地区はチームのデータから数える。南沢・東原は画面を見せるための架空の数。町の画面には数だけを出し、個人名は出さない。 捕獲と知らせの数（deer=シカの頭数・boar=イノシシの頭数・patrol=見回りの回数・reports=住民の知らせ）も、南沢・東原は架空の数。北沢は町へ出した記録から数える。",
   "town": "緑川町（架空）",
   "districts": [
-    { "id": "kitazawa", "name": "北沢地区（架空）", "live": true },
-    { "id": "minamisawa", "name": "南沢地区（架空）", "roles": 7, "single": 1, "empty": 0, "experience": 4, "hands": 2, "teach": 5 },
-    { "id": "higashihara", "name": "東原地区（架空）", "roles": 6, "single": 3, "empty": 2, "experience": 0, "hands": 0, "teach": 0 }
+    {
+      "id": "kitazawa",
+      "name": "北沢地区（架空）",
+      "live": true
+    },
+    {
+      "id": "minamisawa",
+      "name": "南沢地区（架空）",
+      "roles": 7,
+      "single": 1,
+      "empty": 0,
+      "experience": 4,
+      "hands": 2,
+      "teach": 5,
+      "deer": 3,
+      "boar": 1,
+      "patrol": 9,
+      "reports": 1
+    },
+    {
+      "id": "higashihara",
+      "name": "東原地区（架空）",
+      "roles": 6,
+      "single": 3,
+      "empty": 2,
+      "experience": 0,
+      "hands": 0,
+      "teach": 0,
+      "deer": 0,
+      "boar": 2,
+      "patrol": 2,
+      "reports": 4
+    }
   ]
 }
