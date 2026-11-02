@@ -20,7 +20,9 @@ export function renderLog(month) {
   renderTop({ back: '#/map', here: '活動と捕獲の記録' });
   month = /^\d{4}-\d{2}$/.test(month || '') ? month : monthOf(todayStr());
   const list = logsForMonth(logs(), month);
-  const gaps = findGaps(list);
+  // 画面では新しい記録を上に（日時のない記録は最後）。町へ出す一覧は日時の順のまま
+  const shown = [...list.filter((r) => r.datetime).reverse(), ...list.filter((r) => !r.datetime)];
+  const gaps = findGaps(shown);
   const byRec = new Map();
   for (const g of gaps) byRec.set(g.id, [...(byRec.get(g.id) || []), g.label]);
 
@@ -31,7 +33,7 @@ export function renderLog(month) {
       }).join('')}</ul>`
     : '<p class="muted" style="margin:0">抜けはありません。</p>';
 
-  const recHtml = list.map((r) => recordCard(r)).join('') || '<p class="muted">この月の記録はまだありません。</p>';
+  const recHtml = shown.map((r) => recordCard(r)).join('') || '<p class="muted">この月の記録はまだありません。</p>';
   const cols = columns();
   const table = draftTable(list, cols, districtNames());
   const colPicker = [...cols, ...COLUMNS.map((c) => c.id).filter((c) => !cols.includes(c))].map((id) => {

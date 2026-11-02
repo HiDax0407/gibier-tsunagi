@@ -60,6 +60,13 @@ export function agoLabel(iso, now = Date.now()) {
   return `${Math.floor(h / 24)}日と${h % 24}時間前`;
 }
 
+// ---------- Claude が働くところの小さな印 ----------
+// 今は Claude につないでいない（キーは社長が置いてから・リポジトリには入れない）。
+// つなぐまでは「見本（未接続）」と出し、決まった照らし合わせで動かす。
+export const AI = { connected: false };
+export const aiTag = (role, model) =>
+  `<span class="ai-tag">${esc(role)}：${AI.connected ? esc(model) : '見本（未接続）'}</span>`;
+
 // ---------- 書き出し ----------
 export function downloadCsv(name, csv) {
   const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });

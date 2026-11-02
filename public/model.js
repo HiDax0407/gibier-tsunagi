@@ -2,14 +2,46 @@
 import { ctx, store, todayStr } from './ui.js';
 import { placeTraps } from './lib/traps.js';
 import { surname } from './lib/names.js';
+import { applyDecided, stopRisks } from './lib/team-rows.js';
 
 // デモデータの「◯時間前」「◯日前」は、画面を開いた時刻から数える
 export const OPENED = Date.now();
 
+// ---------- 撮影用の「ある朝」の最初の状態 ----------
+// 高木さんが「記録」に手を挙げる前・わなはまだ知らせなし・今朝の記録なし・岩田さんの話はまだ残っていない。
+// デモデータは消さず、画面に出すときに外すだけ（「デモを最初の状態に戻す」で元に戻る）。
+export const SCENE_ASA = {
+  hideHands: ['kiroku:高木 翔（架空）'],
+  hideSignals: true,
+  hideTalk: true,
+};
+export const scene = () => (store.get('scene', null) === 'asa' ? SCENE_ASA : null);
+
+// ---------- 募集カードの手を挙げた人（データ＋この端末で足した人） ----------
+export function handsFor(card) {
+  const sc = scene();
+  const base = card.hands.filter((h) => !sc?.hideHands.includes(`${card.id}:${h.name}`));
+  const added = store.get('addedHands', []).filter((h) => h.card === card.id);
+  return [...base, ...added.map((h) => ({ ...h, local: true }))];
+}
+
+// ---------- チームの表（チームが「お願いする」と決めた人を担当に足す） ----------
+export function teamRows() {
+  const cards = ctx.data.cards.map((c) => ({ ...c, hands: handsFor(c) }));
+  return applyDecided(ctx.data.rows, cards, store.get('decided', {}));
+}
+export function teamRisks() {
+  const cardByRole = Object.fromEntries(ctx.data.cards.map((c) => [c.role, c.id]));
+  return stopRisks(teamRows()).map((r) => ({ ...r, cardId: cardByRole[r.role] || null }));
+}
+
 // ---------- わな ----------
 export function traps() {
   const over = store.get('trapOver', {});
-  return placeTraps(ctx.data.traps.list, OPENED).map((t) => ({ ...t, ...(over[t.id] || {}) }));
+  const sc = scene();
+  return placeTraps(ctx.data.traps.list, OPENED)
+    .map((t) => (sc?.hideSignals ? { ...t, signal: null } : t))
+    .map((t) => ({ ...t, ...(over[t.id] || {}) }));
 }
 export function setTrap(id, patch) {
   const over = store.get('trapOver', {});

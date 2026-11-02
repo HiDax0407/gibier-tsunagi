@@ -4,7 +4,8 @@ import { loadRaw, buildTeam } from '../src/team.mjs';
 import { trapState, countStates, placeTraps, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir } from '../public/lib/traps.js';
 import { findGaps, draftTable, draftCsv, districtTotals, logsForMonth, DEFAULT_COLUMNS } from '../public/lib/log.js';
 import { splitHealth, daysSince, watchList } from '../public/lib/watch.js';
-import { missingSteps, nextQuestion, KATA } from '../public/lib/kikikata.js';
+import { missingSteps, nextQuestion, splitTejun, KATA } from '../public/lib/kikikata.js';
+import { applyDecided, stopRisks } from '../public/lib/team-rows.js';
 import { countDistrict, townRows, townTotals } from '../public/lib/town.js';
 
 const team = buildTeam(loadRaw());
@@ -162,7 +163,38 @@ test('岩田さんの話で、まだ聞けていない工程は「わなの設�
   const texts = [team.veteranTalk.text];
   assert.deepEqual(missingSteps(texts, steps), ['わなの設置・点検']);
   const q = nextQuestion(texts, steps);
-  assert.equal(q.step, 'わなの設置・点検');
   assert.equal(typeof q.text, 'string');
   assert.equal((q.text.match(/？/g) || []).length <= 1, true);
+});
+
+test('「とにかく早く冷やして」のような数のない言い方は、まず「どのくらい」を聞く。数を答えたら次へ', () => {
+  const steps = team.rows.map((r) => r.role);
+  const said = '朝はまず、わなの見回り。止めたら、とにかく早う冷やして運ぶ。時間がたつと肉がダメになる。';
+  const q = nextQuestion([said], steps);
+  assert.equal(q.text, '冷やすのは、どのくらいの早さで？');
+  assert.equal(q.kata, '感覚と量');
+  const q2 = nextQuestion([said, '一時間のうちには冷やし始める。夏はもっと早う。'], steps);
+  assert.notEqual(q2.text, q.text);
+  assert.equal(q2.reason, 'まだ聞けていない工程');
+});
+
+test('手順と注意に分けるだけ。文は本人の言葉のまま（言い換えない・足さない）', () => {
+  const said = '朝はまず、わなの見回り。一人で行くと危ない。止めたら、とにかく早う冷やして運ぶ。';
+  const { tejun, chui } = splitTejun(said);
+  assert.deepEqual(tejun, ['朝はまず、わなの見回り。', '止めたら、とにかく早う冷やして運ぶ。']);
+  assert.deepEqual(chui, ['一人で行くと危ない。']);
+  assert.equal([...tejun, ...chui].map((x) => x.length).reduce((a, b) => a + b), said.length);
+});
+
+// ---------- チームの表：チームが決めた人だけを足す ----------
+test('チームが「お願いする」と決めた人だけが、表の担当に入る（手を挙げただけでは入らない）', () => {
+  const cards = team.cards;
+  const before = applyDecided(team.rows, cards, {});
+  assert.deepEqual(before, team.rows);
+  const after = applyDecided(team.rows, cards, { 'kiroku:高木 翔（架空）': true });
+  const rec = after.find((r) => r.role === '記録（日付・場所）');
+  assert.deepEqual(rec.people, ['高木']);
+  assert.equal(rec.coverage, 'single');
+  assert.deepEqual(rec.added, ['高木']);
+  assert.equal(stopRisks(after).some((r) => r.role === '記録（日付・場所）' && r.coverage === 'empty'), false);
 });

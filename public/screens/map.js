@@ -78,6 +78,7 @@ function initMap(L) {
   const fac = d.facility;
   const pts = traps().map((t) => [t.lat, t.lng]);
   if (fac) pts.push([fac.lat, fac.lng]);
+  map.invalidateSize();
   map.fitBounds(L.latLngBounds(pts), { padding: [28, 28] });
   // チームが登録した運び出しの道（細い線）と処理場
   if (d.road.length) L.polyline(d.road, { color: '#8c8c8c', weight: 3, dashArray: '2 6', interactive: false }).addTo(map);
@@ -107,10 +108,20 @@ function trapIcon(L, t) {
   return L.divIcon({ className: '', html: trapHtml(t, sel), iconSize: [36, 36], iconAnchor: [18, 18] });
 }
 
-function select(id) {
+function select(id, { scroll = true } = {}) {
   selected = id;
   refresh();
-  document.getElementById('trap-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  focusTrap(traps().find((t) => t.id === id));
+  if (scroll) document.getElementById('trap-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// 選んだわなと、処理場までの道が画面に入るように地図を動かす
+function focusTrap(t) {
+  if (!map || !window.L || !t) return;
+  const d = ctx.data.traps;
+  const pts = d.facility ? routeFor(t, d.road, d.facility) : [[t.lat, t.lng]];
+  map.invalidateSize();
+  map.fitBounds(window.L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
 }
 
 // 色と一覧と下の欄を描き直す（地図は作り直さない）
@@ -244,8 +255,7 @@ function simSignal() {
   if (!t) return;
   lastSimNo = t.no;
   setTrap(t.id, { signal: 'caught', signalAt: new Date().toISOString(), goingAt: null });
-  selected = t.id;
-  refresh();
+  select(t.id, { scroll: false });
   toast(`${t.no}番のわなに入った知らせ（模擬）。担当の${t.owner}さんと${t.pair}さんに知らせる想定です（LINE でも送れる形・今は送りません）。`);
 }
 
@@ -253,7 +263,7 @@ function goTwo(id) {
   const t = traps().find((x) => x.id === id);
   if (!t) return;
   const at = new Date().toISOString();
-  addLog({ datetime: at, kind: '出動', trapNo: t.no, by: t.owner, text: `${t.no}番の知らせで、${t.owner}さんと${t.pair}さんの二人で向かった` });
+  addLog({ datetime: at, kind: '出動', trapNo: t.no, by: t.owner, with: t.pair, text: `${t.no}番の知らせで、${t.owner}さんと${t.pair}さんの二人で向かった` });
   setTrap(t.id, { goingAt: at });
   // 新しく入った人と一緒なら、ベテランの「教えた記録」にも残す（確かめるのは本人とチーム）
   const isVeteran = (name) => ctx.data.teach.teachers.includes(name);

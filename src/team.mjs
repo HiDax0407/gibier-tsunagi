@@ -19,25 +19,9 @@ export function loadRaw() {
   return { prepared, roles, teach, town, traps, activity, watch, impact };
 }
 
-// 担当の人数から状態を決める：空き／1人だけ／2人以上
-export function coverage(people) {
-  if (people.length === 0) return 'empty';
-  if (people.length === 1) return 'single';
-  return 'ok';
-}
+import { coverage, stopRisks } from '../public/lib/team-rows.js';
 
-// 止まる役割：空き・1人だけの工程。理由は人数から作る文だけ（話の中身からの理由は、あとで Claude が足す）
-export function stopRisks(rows) {
-  return rows
-    .filter((r) => r.coverage !== 'ok')
-    .map((r) => ({
-      role: r.role,
-      coverage: r.coverage,
-      person: r.coverage === 'single' ? r.people[0] : null,
-      reason: r.coverage === 'empty' ? '担当している人がいない' : `担当が${r.people[0]}さん1人だけ`,
-    }));
-}
-
+export { coverage, stopRisks };
 export { surname };
 
 const EMPTY_TRAPS = { center: [35, 135], zoom: 14, stale_hours_default: 36, stale_hours_choices: [36], traps: [] };

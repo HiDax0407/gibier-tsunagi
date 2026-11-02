@@ -1,14 +1,14 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
-import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice } from './ui.js';
+import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr } from './ui.js';
 import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 import { districtTotals } from './lib/log.js';
 import { splitHealth } from './lib/watch.js';
-import { stepCoverage, nextQuestion } from './lib/kikikata.js';
+import { stepCoverage, nextQuestion, splitTejun } from './lib/kikikata.js';
 import { toCsvText } from './lib/csv.js';
-import { logs, reports, markSpoke } from './model.js';
+import { logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
 import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
 import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit } from './screens/log.js';
 import { renderWatch, watchClick } from './screens/watch.js';
@@ -44,42 +44,56 @@ function licensePill(license, { big = false, sm = false } = {}) {
 }
 
 // ---------- 2 チームの表 ----------
+// 今朝、ベテランと新しく入った人が二人で向かったわな（出動の記録から）
+function todayPairs() {
+  const today = todayStr();
+  return logs().filter((r) => r.kind === '出動' && r.with && r.datetime && dateStr(new Date(r.datetime)) === today);
+}
+
 function renderTeam() {
   renderTop();
-  const { ok, total } = data.goal.progress;
+  const rowsNow = teamRows();
+  const ok = rowsNow.filter((r) => r.coverage === 'ok').length;
+  const total = rowsNow.length;
   const left = total - ok;
   const areaName = strip(data.area.name);
-  const rows = data.rows.map((r, i) => {
-    const who = r.people.map((p) => `<span class="av"><b>${esc(p.slice(0, 1))}</b>${esc(p)}</span>`).join('');
+  const heard = new Map(stepCoverage(talkTexts(), rowsNow.map((r) => r.role)).map((c) => [c.step, c.heard]));
+  const nHeard = [...heard.values()].filter(Boolean).length;
+  const pairs = todayPairs();
+  const rows = rowsNow.map((r, i) => {
+    const who = r.people.map((p) => `<span class="av${r.added?.includes(p) ? ' new' : ''}"><b>${esc(p.slice(0, 1))}</b>${esc(p)}</span>`).join('');
     const pill = r.coverage === 'single' ? '<span class="pill">1人だけ</span>' : r.coverage === 'empty' ? '<span class="pill">空き</span>' : '';
+    const words = heard.get(r.role);
     return `<li class="trow">
-      <span class="no">${i + 1}</span>
+      <span class="no${words ? ' on' : ''}"${words ? ' title="ベテランの言葉が残った工程"' : ''}>${i + 1}</span>
       <div><div class="role">${esc(r.role)}</div><div class="lic">${licensePill(r.license, { sm: true })}</div></div>
       <div class="who">${who}${pill}</div>
     </li>`;
   }).join('');
+  // 今日あったこと（表の高さを変えないよう、表の下に出す）
+  const todayNotes = [
+    ...pairs.map((x) => `今朝、${x.trapNo}番のわなに${x.by}さんと${x.with}さんの二人で向かいました`),
+    ...rowsNow.filter((r) => r.added?.length).map((r) => `「${r.role}」に、チームで決めて${r.added.join('・')}さんが入りました`),
+  ];
   const checks = store.get('goalChecks', {});
   const manual = data.goal.checks.filter((c) => !c.auto).map((c) => `
     <div class="check"><button data-goal="${esc(c.id)}" aria-pressed="${!!checks[c.id]}" aria-label="${esc(c.label)}">✓</button><span>${esc(c.label)}</span></div>`).join('');
 
-  const dmg = change(data.impact.damage);
   view.innerHTML = `
-    <a class="goal-link" href="#/impact">
-      <span class="gl-k">目的：害獣の被害を減らす</span>
-      <span class="gl-v"><b>${dmg.last}<small>件</small></b><span>${monthShort(data.impact.months.at(-1))}の、住民からの被害の知らせ<br>${monthShort(data.impact.months[0])}は ${dmg.first}件（架空のデモ）</span></span>
-      <span class="gl-go">見える化を見る ${ICON.next}</span>
-    </a>
     <h1>${esc(areaName)}のチーム</h1>
     <p class="goal-head">名産として出せる状態まで</p>
     <p class="goal-num">${left === 0 ? 'そろいました' : `あと${left}<small>つ</small>`}</p>
     <div class="segments" style="grid-template-columns:repeat(${total},1fr)" role="img" aria-label="2人以上いる工程 ${ok}/${total}">
       ${Array.from({ length: total }, (_, i) => `<i class="${i < ok ? 'on' : ''}"></i>`).join('')}
     </div>
+    <div class="exp-line"><span>ベテランの経験が本人の言葉で残った工程</span><b>${nHeard}<small>/${total}</small></b></div>
     <ul class="table">
-      <li class="head"><span>工程</span><span>担当</span></li>
+      <li class="head"><span>工程<em><i class="no-dot"></i>＝言葉が残った工程</em></span><span>担当</span></li>
       ${rows}
     </ul>
+    ${todayNotes.length ? `<ul class="today-notes">${todayNotes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
     <p class="muted">${esc(data.licenseCheckNote)}</p>
+    <p class="muted" style="margin-top:-4px">番号が緑の工程は、話す画面で残した話にその工程が出てきた印です。人名・数は架空のデモです。</p>
     <section class="checks">
       <h3>ほかにチームが確かめること</h3>
       ${manual}
@@ -89,9 +103,15 @@ function renderTeam() {
       <img src="/img/photo_03_shokudo.jpg" alt="山あいの食堂に並ぶ鹿肉の煮込み定食（AI で生成した架空の場面）" loading="lazy">
       <figcaption>ゴール：地域の名産として出せる状態。この先に、新しく入る人が増える・農村の被害が減る・ジビエが普段の食べものになる。（写真は AI で生成した架空の場面）</figcaption>
     </figure>
-    <button class="outline wide" data-go="watch" style="margin-top:20px">${icon('clock')}見守り（話していない日が続いたら知らせる）</button>
+    <a class="goal-link" href="#/impact" style="margin-top:20px">
+      <span class="gl-k">目的：害獣の被害を減らす</span>
+      <span class="gl-v"><span>町と同じ数（捕獲・見回り・住民の知らせ）を、月ごとに見る</span></span>
+      <span class="gl-go">見える化を見る ${ICON.next}</span>
+    </a>
+    <button class="outline wide" data-go="watch" style="margin-top:4px">${icon('clock')}見守り（話していない日が続いたら知らせる）</button>
     <button class="outline wide" data-go="town" style="margin-top:12px">${icon('town')}町の地区一覧（町の担当の方向け）</button>
-    <button class="link reset" data-reset>デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
+    <button class="link reset" data-scene="asa">撮影用：「ある朝」の最初の状態にする</button>
+    <button class="link reset" data-reset style="margin-top:0">デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
 }
 
 // ---------- 3 止まる役割 ----------
@@ -109,7 +129,7 @@ function renderRisk() {
   // 人ごとにまとめる（人に順位はつけない。並びは工程の順）
   const byPerson = new Map();
   const empty = [];
-  for (const r of data.risks) {
+  for (const r of teamRisks()) {
     if (r.person) byPerson.set(r.person, [...(byPerson.get(r.person) || []), r]);
     else empty.push(r);
   }
@@ -122,11 +142,6 @@ function renderRisk() {
 }
 
 // ---------- 4 募集カード（一覧） ----------
-function handsFor(card) {
-  const added = store.get('addedHands', []).filter((h) => h.card === card.id);
-  return [...card.hands, ...added.map((h) => ({ ...h, local: true }))];
-}
-
 function renderCards() {
   renderTop();
   const items = data.cards.map((c) => {
@@ -208,7 +223,7 @@ function savedTalks() {
   // 新しい話から上に
   return [
     ...store.get('talks', []).map((x) => ({ ...x, local: true })).reverse(),
-    { id: 'prepared', who: strip(t.speaker).split('（')[0], date: t.date, text: t.text },
+    ...(scene()?.hideTalk ? [] : [{ id: 'prepared', who: strip(t.speaker).split('（')[0], date: t.date, text: t.text }]),
   ];
 }
 
@@ -222,12 +237,20 @@ function renderTalk() {
   const cover = stepCoverage(talkTexts(), steps);
   const q = nextQuestion(talkTexts(), steps);
   const missing = cover.filter((c) => !c.heard);
-  const talks = savedTalks().map((x) => `
+  const talks = savedTalks().map((x) => {
+    const sp = splitTejun(x.text);
+    const li = (list) => list.map((t) => `<li>${esc(t)}</li>`).join('') || '<li class="muted">（なし）</li>';
+    return `
     <div class="quote">
       <div class="who-line">${esc(x.who)}さん・${esc(x.date)}${x.local ? '（この端末で残した話）' : ''}</div>
       <p class="said">${esc(x.text)}</p>
-      <button class="say" data-say="${esc(x.id)}">${icon('speaker')}声で聞く</button>
-    </div>`).join('');
+      <div class="split">
+        <div><h4>手順</h4><ul>${li(sp.tejun)}</ul></div>
+        <div class="c"><h4>注意</h4><ul>${li(sp.chui)}</ul></div>
+      </div>
+      <div class="ask-foot"><button class="say" data-say="${esc(x.id)}">${icon('speaker')}声で聞く</button>${aiTag('整理', 'Claude Opus 5.5')}</div>
+    </div>`;
+  }).join('');
 
   view.innerHTML = `
     <h1>話す</h1>
@@ -251,18 +274,27 @@ function renderTalk() {
     </details>
     ${healthDropped ? `<div class="hnote">体のぐあいの話（${healthDropped}文）は残しませんでした。見守りは、話した日だけを見ます。</div>` : ''}
     <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。体のぐあいの話は残しません。</p>
+    <h2>残した話</h2>
+    ${talks || '<p class="muted">まだありません。</p>'}
     <section class="ask">
       <h3>次に聞くこと（1つだけ）</h3>
       <p class="said">${esc(q.text)}</p>
-      <div class="ask-foot"><button class="say" data-say-q>${icon('speaker')}声で聞く</button><span class="muted">聞き方の型：${esc(q.kata)}</span></div>
+      ${q.said ? `<p class="muted" style="margin:-4px 0 8px">「${esc(q.said)}」の、どのくらいを聞きます。</p>` : ''}
+      <div class="ask-foot"><button class="say" data-say-q>${icon('speaker')}声で聞く</button><span class="muted">聞き方の型：${esc(q.kata)}</span>${aiTag('聞き返し', 'Claude Haiku 5.5＋聞き方の型')}</div>
+      <form class="answer" data-answer><label>答える（話すか、文字で）</label>${voiceFieldLite('answer-text')}<button class="outline wide" type="submit">この答えを残す</button></form>
       <h3 style="margin-top:14px">まだ聞けていない工程</h3>
       <div class="steps">${cover.map((c) => `<span class="stp${c.heard ? ' on' : ''}">${c.heard ? '✓ ' : ''}${esc(c.step)}</span>`).join('')}</div>
       <p class="muted" style="margin:8px 0 0">${missing.length ? `${missing.length}つの工程が、まだ話に出ていません。` : 'すべての工程が話に出ました。次は、深く聞きます。'}今は言葉の照らし合わせで出しています。Claude をつなぐと、聞き方の型（失敗談・見分け方・どのくらい・昔と今・新人の間違い・話の食い違い）で、話の中身から1つだけ聞き返します。</p>
     </section>
-    <h2>残した話</h2>
-    ${talks}
-    <div class="pending">Claude をつなぐと、残した話を工程ごとの「手順」と「注意」にまとめます。準備中。</div>`;
+    <p class="muted">手順と注意は、今は言葉の照らし合わせで分けた見本です（本人の言葉のまま・言い換えない）。Claude をつなぐと、工程ごとに並べ、「なぜそうするか」を注意の横に置きます。</p>`;
 }
+
+// 答える欄（話す画面の聞き返しの下）
+const voiceFieldLite = (id) => `
+  <div class="vfield">
+    <button type="button" class="vmic${SR ? '' : ' off'}" data-voice="${esc(id)}" aria-pressed="false" aria-label="押して話す">${ICON.mic}<span>${SR ? '押して話す' : '声は使えません'}</span></button>
+    <textarea class="talk" id="${esc(id)}" rows="2" maxlength="600" placeholder="例：一時間のうちには冷やし始める。"></textarea>
+  </div>`;
 
 function showHeard() {
   const box = document.getElementById('heard');
@@ -341,7 +373,8 @@ function renderTeach(month) {
       </div>`).join('')
     : '<p class="muted">この月の記録はまだありません。</p>';
 
-  const recHtml = list.map((r) => `
+  // 画面では新しい日を上に（印刷と CSV は日付の順）
+  const recHtml = [...list].reverse().map((r) => `
     <article class="rec">
       <div class="d">${esc(dayLabel(r.date))}${r.local ? '<span class="muted">（この端末で追加）</span>' : ''}</div>
       <div class="r">${roleIcon(r.role)}<b>${esc(r.role)}</b></div>
@@ -412,7 +445,7 @@ function renderTown() {
   renderTop({ back: '#/team', here: '町の地区一覧' });
   const live = {
     ...countDistrict({
-      rows: data.rows,
+      rows: teamRows(),
       cards: data.cards.map((c) => ({ hands: handsFor(c) })),
       records: teachRecords(),
       experienceRoles: data.experienceRoles,
@@ -479,8 +512,22 @@ function townCsv() {
 }
 
 // ---------- 切り替え ----------
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene'];
+function clearLocal() {
+  for (const k of LOCAL_KEYS) {
+    try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
+  }
+}
+// 撮影用の「ある朝」：この端末で足したものを消してから、最初の状態にする
+function startScene() {
+  clearLocal();
+  store.set('scene', 'asa');
+  toast('撮影用の「ある朝」の最初の状態にしました。');
+}
+
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
+  if (name === 'asa') { startScene(); location.replace('#/team'); return; }
   if (name !== 'talk') rec?.stop();
   voice.stop();
   try { speechSynthesis.cancel(); } catch { /* 読み上げなし */ }
@@ -522,10 +569,15 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-town-csv]')) { townCsv(); return; }
   if (e.target.closest('[data-reset]')) {
     if (!confirm('この端末で足した記録・押した「はい」・設定を消して、デモを最初の状態に戻します。よろしいですか？')) return;
-    for (const k of ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet']) {
-      try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
-    }
+    clearLocal();
     toast('デモを最初の状態に戻しました。');
+    route();
+    return;
+  }
+
+  if (e.target.closest('[data-scene]')) {
+    if (!confirm('この端末で足したものを消して、撮影用の「ある朝」の最初の状態にします。よろしいですか？')) return;
+    startScene();
     route();
     return;
   }
@@ -612,6 +664,13 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('submit', (e) => {
   if (mapSubmit(e) || logSubmit(e) || reportSubmit(e)) return;
+  if (e.target.closest('[data-answer]')) {
+    e.preventDefault();
+    voice.stop();
+    const text = document.getElementById('answer-text')?.value;
+    if (String(text || '').trim()) saveTalk(text);
+    return;
+  }
   const tf = e.target.closest('form.teach');
   if (tf) {
     e.preventDefault();
