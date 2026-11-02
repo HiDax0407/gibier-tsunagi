@@ -527,7 +527,12 @@ function startScene() {
 
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
-  if (name === 'asa') { startScene(); location.replace('#/team'); return; }
+  // リンクを開いただけで消えないよう、必ず確かめてから
+  if (name === 'asa') {
+    if (confirm('この端末で足したものを消して、撮影用の「ある朝」の最初の状態にします。よろしいですか？')) startScene();
+    location.replace('#/team');
+    return;
+  }
   if (name !== 'talk') rec?.stop();
   voice.stop();
   try { speechSynthesis.cancel(); } catch { /* 読み上げなし */ }
