@@ -1,0 +1,55 @@
+{
+  "_note": "2026-11-02 期間中に作成。教えた記録のデモデータ。人名・地名・日付の出来事はすべて架空。アプリは金額を決めない・お金を動かさない・教え方に点数をつけない。『はい』はベテラン本人とチームが押す。",
+  "records": [
+    {
+      "id": "t1",
+      "date": "2026-10-17",
+      "role": "冷蔵・保管",
+      "teacher": "小川",
+      "partner": "高木",
+      "what": "冷蔵庫の温度の見方と、貼り紙の書き方を一緒に",
+      "teacherOk": true,
+      "teamOk": true
+    },
+    {
+      "id": "t2",
+      "date": "2026-10-24",
+      "role": "見回り",
+      "teacher": "岩田",
+      "partner": "高木",
+      "what": "朝の見回りに同行。わなの場所を回る順番",
+      "teacherOk": true,
+      "teamOk": true
+    },
+    {
+      "id": "t3",
+      "date": "2026-10-28",
+      "role": "出荷・店とのやりとり",
+      "teacher": "岩田",
+      "partner": "野口",
+      "what": "店への電話に同席。注文の受け方",
+      "teacherOk": true,
+      "teamOk": false
+    },
+    {
+      "id": "t4",
+      "date": "2026-10-31",
+      "role": "見回り",
+      "teacher": "佐伯",
+      "partner": "高木",
+      "what": "休みの日の見回りに同行",
+      "teacherOk": true,
+      "teamOk": true
+    },
+    {
+      "id": "t5",
+      "date": "2026-11-01",
+      "role": "見回り",
+      "teacher": "岩田",
+      "partner": "高木",
+      "what": "朝の見回りに同行。二人で行く理由",
+      "teacherOk": false,
+      "teamOk": false
+    }
+  ]
+}

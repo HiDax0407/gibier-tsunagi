@@ -1,6 +1,7 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
+import { monthOf, shiftMonth, monthLabel, isConfirmed, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 
 const view = document.getElementById('view');
 const top = document.getElementById('top');
@@ -35,6 +36,7 @@ const TABS = [
   { id: 'team', label: 'チーム', icon: 'team' },
   { id: 'risk', label: '止まる役割', icon: 'alert' },
   { id: 'cards', label: '募集', icon: 'card' },
+  { id: 'teach', label: '教えた記録', icon: 'clipboard' },
 ];
 
 function renderTabs(current) {
@@ -215,6 +217,121 @@ function renderTalk() {
     <div class="pending">Claude をつなぐと、ここに工程ごとの「手順」と「注意」が並び、抜けている点を1つだけ聞き返します。準備中。</div>`;
 }
 
+// ---------- 5 教えた記録 ----------
+// 一緒にやった日・工程・相手を残し、ベテラン本人とチームが「はい」で確かめる。
+// 金額は決めない・お金は動かさない・教え方に点数をつけない。
+const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+const dayLabel = (date) => {
+  const [y, m, d] = date.split('-').map(Number);
+  return `${m}月${d}日（${WEEK[new Date(y, m - 1, d).getDay()]}）`;
+};
+const todayStr = () => {
+  const t = new Date();
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
+
+// データの記録＋この端末で足した記録に、この端末で押した「はい」を重ねる
+function teachRecords() {
+  const oks = store.get('teachOk', {});
+  return [...data.teach.records, ...store.get('teachAdded', []).map((r) => ({ ...r, local: true }))]
+    .map((r) => ({ ...r, ...(oks[r.id] || {}) }));
+}
+
+function okButton(r, who) {
+  const key = who === 'teacher' ? 'teacherOk' : 'teamOk';
+  const label = who === 'teacher' ? `${r.teacher}さん` : 'チーム';
+  return `<button class="ok" data-ok="${esc(r.id)}:${key}" aria-pressed="${!!r[key]}">
+    <span class="box">✓</span><span>${esc(label)}<b>${r[key] ? 'はい' : 'まだ'}</b></span></button>`;
+}
+
+function renderTeach(month) {
+  renderTop();
+  month = /^\d{4}-\d{2}$/.test(month || '') ? month : monthOf(todayStr());
+  const list = recordsForMonth(teachRecords(), month);
+  const sum = summarizeByTeacher(list, data.teach.teachers);
+  const area = data.area.name;
+
+  const sumHtml = sum.length
+    ? sum.map((s) => `<div class="tsum">
+        <span class="av"><b>${esc(s.teacher.slice(0, 1))}</b></span>
+        <div><div class="nm">${esc(s.teacher)}さん</div><div class="rl">${esc(s.roles.join('・'))}</div></div>
+        <div class="ct"><b>${s.confirmed}<small>回</small></b><span>${s.waiting ? `確認待ち ${s.waiting}回` : '確かめ済み'}</span></div>
+      </div>`).join('')
+    : '<p class="muted">この月の記録はまだありません。</p>';
+
+  const recHtml = list.map((r) => `
+    <article class="rec">
+      <div class="d">${esc(dayLabel(r.date))}${r.local ? '<span class="muted">（この端末で追加）</span>' : ''}</div>
+      <div class="r">${roleIcon(r.role)}<b>${esc(r.role)}</b></div>
+      <div class="pp">教えた人 <b>${esc(r.teacher)}さん</b>　一緒にやった人 <b>${esc(r.partner)}さん</b></div>
+      ${r.what ? `<div class="w">${esc(r.what)}</div>` : ''}
+      <div class="oks">${okButton(r, 'teacher')}${okButton(r, 'team')}</div>
+    </article>`).join('');
+
+  const printRows = list.map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.role)}</td><td>${esc(r.teacher)}</td><td>${esc(r.partner)}</td><td>${esc(r.what || '')}</td><td>${r.teacherOk ? 'はい' : '未'}</td><td>${r.teamOk ? 'はい' : '未'}</td></tr>`).join('');
+  const printSum = sum.map((s) => `${esc(s.teacher)}さん　確かめ済み ${s.confirmed}回${s.waiting ? `（確認待ち ${s.waiting}回）` : ''}`).join('<br>');
+
+  view.innerHTML = `
+    <div class="no-print">
+      <h1>教えた記録</h1>
+      <p class="lead">ベテランと一緒にやった日を残します。ベテラン本人とチームが「はい」を押して確かめます。</p>
+      <div class="month">
+        <button class="mbtn" data-go="teach/${shiftMonth(month, -1)}" aria-label="前の月">${ICON.back}</button>
+        <b>${esc(monthLabel(month))}</b>
+        <button class="mbtn" data-go="teach/${shiftMonth(month, 1)}" aria-label="次の月">${ICON.next}</button>
+      </div>
+      <h2>教えた人ごとの回数</h2>
+      <p class="muted" style="margin-top:-6px">確かめ済み＝本人とチームの両方が「はい」。並びは名簿の順です。</p>
+      ${sumHtml}
+      <div class="fee-note">金額はこのアプリでは決めません。お金も動かしません。謝礼の扱いは、チームと町・処理場で決めてください。教え方に点数はつけません。</div>
+      <h2>この月の記録</h2>
+      ${recHtml || '<p class="muted">まだありません。</p>'}
+      <div id="teach-form-slot"></div>
+      <button class="outline wide" data-teach-add="${esc(month)}">${icon('doc')}記録を足す</button>
+      <div class="row2">
+        <button class="outline" data-print>印刷する</button>
+        <button class="outline" data-csv="${esc(month)}">書き出す（CSV）</button>
+      </div>
+    </div>
+    <section class="print-only">
+      <h1>教えた記録　${esc(monthLabel(month))}</h1>
+      <p>${esc(area)}　／　確かめ済み＝ベテラン本人とチームの両方が「はい」</p>
+      <table><thead><tr><th>日付</th><th>工程</th><th>教えた人</th><th>一緒にやった人</th><th>したこと</th><th>本人</th><th>チーム</th></tr></thead>
+      <tbody>${printRows || '<tr><td colspan="7">記録なし</td></tr>'}</tbody></table>
+      <p>${printSum}</p>
+      <p>チームの確認者（署名）＿＿＿＿＿＿＿＿＿＿　　確認日＿＿＿＿＿＿</p>
+      <p class="small">金額はこのアプリでは決めません。謝礼の扱いは、チームと町・処理場で決めてください。人名・地名はすべて架空のデモです。</p>
+    </section>`;
+}
+
+function teachForm(month) {
+  const opt = (list, sel) => list.map((v) => `<option${v === sel ? ' selected' : ''}>${esc(v)}</option>`).join('');
+  const today = todayStr();
+  const date = monthOf(today) === month ? today : `${month}-01`;
+  return `
+    <form class="raise teach" data-month="${esc(month)}">
+      <label>日付<input type="date" name="date" value="${esc(date)}" required></label>
+      <label>工程<select name="role">${opt(data.rows.map((r) => r.role))}</select></label>
+      <label>教えた人<select name="teacher">${opt(data.teach.teachers)}</select></label>
+      <label>一緒にやった人<select name="partner">${opt(data.teach.people, '高木')}</select></label>
+      <label>したこと（短く・なくてもよい）<input name="what" maxlength="60" autocomplete="off"></label>
+      <button class="primary" type="submit">この内容で残す</button>
+      <p class="muted" style="margin:0">残したあと、教えた人とチームが「はい」を押します。</p>
+    </form>`;
+}
+
+function downloadCsv(month) {
+  const csv = toCsv(recordsForMonth(teachRecords(), month));
+  const blob = new Blob(['﻿', csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `教えた記録_${month}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
 // ---------- 切り替え ----------
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
@@ -222,6 +339,7 @@ function route() {
   const tab = TABS.some((t) => t.id === name) ? name : 'team';
   renderTabs(tab);
   if (name === 'cards' && arg) renderCard(arg);
+  else if (name === 'teach') renderTeach(arg);
   else ({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk }[tab])();
   window.scrollTo(0, 0);
 }
@@ -251,6 +369,33 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  const ok = e.target.closest('[data-ok]');
+  if (ok) {
+    const [id, key] = ok.dataset.ok.split(':');
+    const oks = store.get('teachOk', {});
+    const cur = teachRecords().find((r) => r.id === id);
+    oks[id] = { ...(oks[id] || {}), [key]: !cur?.[key] };
+    store.set('teachOk', oks);
+    const y = window.scrollY;
+    renderTeach(monthOf(cur.date));
+    window.scrollTo(0, y);
+    return;
+  }
+
+  const add = e.target.closest('[data-teach-add]');
+  if (add) {
+    const slot = document.getElementById('teach-form-slot');
+    if (!slot.firstChild) slot.innerHTML = teachForm(add.dataset.teachAdd);
+    add.hidden = true;
+    slot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  if (e.target.closest('[data-print]')) { window.print(); return; }
+
+  const csv = e.target.closest('[data-csv]');
+  if (csv) { downloadCsv(csv.dataset.csv); return; }
+
   const raise = e.target.closest('[data-raise]');
   if (raise) {
     const slot = document.getElementById('raise-slot');
@@ -268,6 +413,23 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('submit', (e) => {
+  const tf = e.target.closest('form.teach');
+  if (tf) {
+    e.preventDefault();
+    const fd = new FormData(tf);
+    const date = String(fd.get('date') || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+    const added = store.get('teachAdded', []);
+    added.push({
+      id: `local-${Date.now()}`, date,
+      role: String(fd.get('role')), teacher: String(fd.get('teacher')), partner: String(fd.get('partner')),
+      what: String(fd.get('what') || '').trim(), teacherOk: false, teamOk: false,
+    });
+    store.set('teachAdded', added);
+    location.hash = `#/teach/${monthOf(date)}`;
+    if (monthOf(date) === tf.dataset.month) route();
+    return;
+  }
   const form = e.target.closest('form.raise');
   if (!form) return;
   e.preventDefault();

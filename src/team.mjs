@@ -9,7 +9,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 export function loadRaw() {
   const prepared = JSON.parse(readFileSync(join(root, 'data/prepared/gibier_team.json'), 'utf8'));
   const roles = JSON.parse(readFileSync(join(root, 'data/kitazawa_roles.json'), 'utf8'));
-  return { prepared, roles };
+  const teach = JSON.parse(readFileSync(join(root, 'data/teach_records.json'), 'utf8'));
+  return { prepared, roles, teach };
 }
 
 // 担当の人数から状態を決める：空き／1人だけ／2人以上
@@ -31,7 +32,10 @@ export function stopRisks(rows) {
     }));
 }
 
-export function buildTeam({ prepared, roles }) {
+// 「岩田 勝（架空）」→「岩田」
+export const surname = (name) => String(name).replace(/（架空）/g, '').trim().split(/\s+/)[0];
+
+export function buildTeam({ prepared, roles, teach = { records: [] } }) {
   const rows = prepared.current_roles.map((r) => {
     const meta = roles.roles[r.role] || {};
     return {
@@ -70,5 +74,11 @@ export function buildTeam({ prepared, roles }) {
     licenseCheckNote: roles.license_check_note,
     pathSteps: roles.path_steps,
     cards,
+    // 教えた記録：名簿の順（ベテランから）。回数の多い順には並べない
+    teach: {
+      records: teach.records,
+      teachers: prepared.members.map((m) => surname(m.name)),
+      people: [...prepared.members, ...prepared.volunteers].map((m) => surname(m.name)),
+    },
   };
 }

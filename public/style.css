@@ -11,6 +11,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -56,7 +57,7 @@ h2 { font-size: 22px; font-weight: 800; margin: 28px 0 10px; }
 /* 下のタブ */
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(4, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: rgba(255,255,255,.96); border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
   backdrop-filter: saturate(1.4) blur(8px);
@@ -198,11 +199,11 @@ button.primary[disabled] { opacity: .45; cursor: default; }
 
 form.raise { display: grid; gap: 10px; margin: 16px 0 0; padding: 16px; border: 1.5px solid var(--accent); border-radius: 14px; background: var(--accent-soft); }
 form.raise label { font-size: 13.5px; color: var(--sub); display: grid; gap: 4px; }
-form.raise input, form.raise textarea, textarea.talk {
+form.raise input, form.raise textarea, form.raise select, textarea.talk {
   width: 100%; font: inherit; font-size: 16px; padding: 11px 12px;
   border: 1.5px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink);
 }
-form.raise input:focus, form.raise textarea:focus, textarea.talk:focus { outline: none; border-color: var(--accent); }
+form.raise input:focus, form.raise textarea:focus, form.raise select:focus, textarea.talk:focus { outline: none; border-color: var(--accent); }
 
 /* 経験を集める */
 .quote { border-left: 4px solid var(--accent); padding: 12px 14px; margin: 8px 0 12px; background: var(--soft); border-radius: 0 12px 12px 0; font-size: 15.5px; }
@@ -215,3 +216,49 @@ form.raise input:focus, form.raise textarea:focus, textarea.talk:focus { outline
 .center { text-align: center; }
 
 a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* 教えた記録 */
+.month { display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 14px; padding: 6px; margin: 0 0 4px; }
+.month b { font-size: 20px; font-weight: 800; }
+.mbtn { width: 48px; height: 48px; border: 0; background: var(--soft); border-radius: 10px; display: grid; place-items: center; cursor: pointer; color: var(--accent); }
+.mbtn svg { width: 24px; height: 24px; }
+.tsum { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 12px 2px; border-bottom: 1px solid var(--line); }
+.tsum .nm { font-weight: 800; font-size: 18px; }
+.tsum .rl { color: var(--sub); font-size: 13.5px; }
+.tsum .ct { text-align: right; }
+.tsum .ct b { display: block; font-size: 30px; font-weight: 800; line-height: 1.1; color: var(--accent); }
+.tsum .ct b small { font-size: 15px; }
+.tsum .ct span { font-size: 12.5px; color: var(--sub); }
+.fee-note { font-size: 13.5px; color: var(--sub); border: 1.5px dashed #9a9a9a; border-radius: 10px; padding: 10px 12px; margin: 14px 0 0; }
+.rec { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 0 0 12px; }
+.rec .d { font-size: 14px; color: var(--sub); }
+.rec .r { display: flex; align-items: center; gap: 8px; margin-top: 4px; color: var(--accent); }
+.rec .r b { color: var(--ink); font-size: 19px; font-weight: 800; }
+.rec .pp { font-size: 15px; margin-top: 6px; color: var(--sub); }
+.rec .pp b { color: var(--ink); }
+.rec .w { font-size: 14px; color: var(--sub); margin-top: 2px; }
+.oks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+button.ok {
+  display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px; border-radius: 12px; cursor: pointer;
+  background: var(--bg); border: 1.5px solid #9a9a9a; text-align: left; font-size: 14px; color: var(--sub);
+}
+button.ok b { display: block; font-size: 18px; color: var(--ink); }
+button.ok .box { flex: none; width: 28px; height: 28px; border-radius: 7px; border: 1.8px solid var(--accent); color: var(--bg); display: grid; place-items: center; font-size: 16px; }
+button.ok[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+button.ok[aria-pressed="true"] .box { background: var(--accent); }
+button.ok[aria-pressed="true"] b { color: var(--accent); }
+button.outline.wide { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.row2 .outline { padding: 8px 10px; }
+.print-only { display: none; }
+
+@media print {
+  .top, .tabs, .no-print, .cta { display: none !important; }
+  body { padding: 0; font-size: 11pt; }
+  main { max-width: none; padding: 0; }
+  .print-only { display: block; }
+  .print-only h1 { font-size: 18pt; margin: 0 0 6pt; }
+  .print-only table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+  .print-only th, .print-only td { border: 1px solid #555; padding: 4pt 6pt; text-align: left; vertical-align: top; }
+  .print-only .small, .fiction { font-size: 9pt; color: #444; }
+}
