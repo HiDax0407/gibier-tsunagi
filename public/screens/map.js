@@ -34,6 +34,7 @@ export function renderMap() {
   view.innerHTML = `
     <h1>わなの地図</h1>
     <p class="lead">わなの点を色で見せます。押すと、担当と「二人で行く」相手と、処理場までの道が出ます。</p>
+    <button class="outline sm" data-go="log" style="margin:-6px 0 12px">${icon('doc')}活動と捕獲の記録・町へ出す一覧</button>
     <div class="legend" id="legend"></div>
     <div class="mapbox"><div id="map" role="region" aria-label="わなの地図"></div><p class="map-msg" id="map-msg">地図を読み込んでいます…</p></div>
     <div class="sim">

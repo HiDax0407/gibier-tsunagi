@@ -522,3 +522,6 @@ form.answer label { font-size: 13px; font-weight: 700; }
 .table .head .no-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-right: 4px; vertical-align: -1px; }
 .today-notes { list-style: none; margin: 10px 0 8px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--soft); border-radius: 0 10px 10px 0; font-size: 14px; }
 .today-notes li { margin: 2px 0; }
+
+/* 残した話へ動いたとき、見出しが上の帯に隠れないように */
+#talks { scroll-margin-top: 56px; }

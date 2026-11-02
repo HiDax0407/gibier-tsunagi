@@ -178,7 +178,7 @@ function renderCard(id) {
         const key = `${c.id}:${h.name}`;
         const isDecided = !!decided[key];
         return `<div class="hand">
-          <span class="name">${esc(strip(h.name))}さん</span>${isDecided ? '<span class="decided">チームで決定</span>' : ''}${h.local ? '<span class="muted">（この端末で追加）</span>' : ''}
+          <span class="name">${esc(strip(h.name))}さん</span>${isDecided ? '<span class="decided">チームで決定</span>' : ''}${h.since ? `<span class="muted">（${esc(dayLabel(h.since))}に手を挙げた）</span>` : ''}${h.local ? '<span class="muted">（この端末で追加）</span>' : ''}
           <div class="cond">本人が書いた条件：${esc(h.conditions) || '（なし）'}</div>
           <button class="outline sm" data-decide="${esc(key)}">${isDecided ? '決定を取り消す' : 'チームで話して、お願いする'}</button>
         </div>`;
@@ -274,7 +274,7 @@ function renderTalk() {
     </details>
     ${healthDropped ? `<div class="hnote">体のぐあいの話（${healthDropped}文）は残しませんでした。見守りは、話した日だけを見ます。</div>` : ''}
     <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。体のぐあいの話は残しません。</p>
-    <h2>残した話</h2>
+    <h2 id="talks">残した話</h2>
     ${talks || '<p class="muted">まだありません。</p>'}
     <section class="ask">
       <h3>次に聞くこと（1つだけ）</h3>
@@ -338,6 +338,8 @@ function saveTalk(text) {
     markSpoke(who);
   }
   renderTalk();
+  // 残した話（手順と注意に分かれたところ）が見える所まで動く
+  if (kept) document.getElementById('talks')?.scrollIntoView({ block: 'start' });
   healthDropped = 0;
 }
 
@@ -443,12 +445,15 @@ function downloadCsv(month) {
 // 地区ごとの数だけを出す。個人名は出さない。
 function renderTown() {
   renderTop({ back: '#/team', here: '町の地区一覧' });
+  const rowsNow = teamRows();
+  // チームの表と同じ数え方（話す画面で残した話に、その工程の言葉が出てきたか）
+  const heardSteps = stepCoverage(talkTexts(), rowsNow.map((r) => r.role)).filter((c) => c.heard).map((c) => c.step);
   const live = {
     ...countDistrict({
-      rows: teamRows(),
+      rows: rowsNow,
       cards: data.cards.map((c) => ({ hands: handsFor(c) })),
       records: teachRecords(),
-      experienceRoles: data.experienceRoles,
+      experienceRoles: heardSteps,
     }),
     ...districtTotals(logs(), data.homeDistrict),
     reports: reports().filter((r) => r.district === data.homeDistrict).length,
@@ -483,7 +488,7 @@ function renderTown() {
     ${cards}
     <ul class="notes">
       <li>北沢地区の数は、チームの表・募集カード・教えた記録から数えています。南沢・東原は画面を見せるための架空の数です。</li>
-      <li>「経験が残った工程」は、話す画面で残した話を Claude が工程ごとにまとめてから数えます（準備中のため、北沢は今 0）。</li>
+      <li>「経験が残った工程」は、話す画面で残した話にその工程の言葉が出てきた数です（チームの表と同じ。今は言葉の照らし合わせで、Claude をつなぐと工程ごとにまとめてから数えます）。</li>
       <li>シカ・イノシシ・見回りの数は、チームが確かめて「町へ出す」を押した記録だけを数えます。住民の知らせは件数だけです。</li>
       <li>計画の見直しや報告の材料に使えるかは、町の窓口で確かめてください（要確認）。</li>
     </ul>
@@ -518,18 +523,21 @@ function clearLocal() {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
   }
 }
-// 撮影用の「ある朝」：この端末で足したものを消してから、最初の状態にする
+// 撮影用の「ある朝」：この端末で足したものを消してから、最初の状態にする。
+// 画面の中に残る状態（模擬の知らせの番号・開いた時刻・話しかけの言葉）も戻すため、チームの表で読み込み直す
 function startScene() {
   clearLocal();
   store.set('scene', 'asa');
-  toast('撮影用の「ある朝」の最初の状態にしました。');
+  try { sessionStorage.setItem('sceneMsg', '撮影用の「ある朝」の最初の状態にしました。'); } catch { /* 使えない環境 */ }
+  location.replace('#/team');
+  location.reload();
 }
 
 function route() {
   const [name, arg] = (location.hash.replace(/^#\/?/, '') || 'team').split('/');
   // リンクを開いただけで消えないよう、必ず確かめてから
   if (name === 'asa') {
-    if (confirm('この端末で足したものを消して、撮影用の「ある朝」の最初の状態にします。よろしいですか？')) startScene();
+    if (confirm('この端末で足したものを消して、撮影用の「ある朝」の最初の状態にします。よろしいですか？')) { startScene(); return; }
     location.replace('#/team');
     return;
   }
@@ -583,7 +591,6 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('[data-scene]')) {
     if (!confirm('この端末で足したものを消して、撮影用の「ある朝」の最初の状態にします。よろしいですか？')) return;
     startScene();
-    route();
     return;
   }
 
@@ -716,6 +723,13 @@ document.addEventListener('input', (e) => {
 window.addEventListener('hashchange', route);
 if (store.get('bigText', false)) document.body.classList.add('big');
 
-load().then(route).catch((err) => {
+load().then(() => {
+  route();
+  // 撮影用の最初の状態にしたあとの読み込み直しなら、知らせを出す
+  try {
+    const m = sessionStorage.getItem('sceneMsg');
+    if (m) { sessionStorage.removeItem('sceneMsg'); toast(m); }
+  } catch { /* 使えない環境 */ }
+}).catch((err) => {
   view.innerHTML = `<p>${esc(err.message)}</p>`;
 });

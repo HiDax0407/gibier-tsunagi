@@ -16,11 +16,12 @@ test('北沢地区（架空）で止まる役割は、処理・出荷・記録',
   assert.equal(team.goal.progress.total, 7);
 });
 
-test('手を挙げた人は、手を挙げた順のまま（点数や順位を持たない）', () => {
+test('手を挙げた人は、手を挙げた順のまま（名前・条件・手を挙げた日だけ。点数や順位を持たない）', () => {
   const team = buildTeam(loadRaw());
   for (const card of team.cards) {
     for (const h of card.hands) {
-      assert.deepEqual(Object.keys(h).sort(), ['conditions', 'name']);
+      assert.deepEqual(Object.keys(h).sort(), ['conditions', 'name', 'since']);
+      assert.match(h.since, /^\d{4}-\d{2}-\d{2}$/, h.name);
     }
   }
 });

@@ -53,7 +53,7 @@ export function buildTeam({
     license: roles.roles[c.role]?.license || 'needs_check',
     hands: roles.raised_hands
       .filter((h) => h.card === c.id)
-      .map((h) => ({ name: h.volunteer, conditions: volunteers[h.volunteer]?.conditions || '' })),
+      .map((h) => ({ name: h.volunteer, conditions: volunteers[h.volunteer]?.conditions || '', since: h.since || null })),
   }));
 
   const cardByRole = Object.fromEntries(cards.map((c) => [c.role, c.id]));
