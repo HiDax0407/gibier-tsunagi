@@ -81,3 +81,21 @@ export function parsePatrol(text, traps = []) {
 
   return { no, trapId: trap ? trap.id : null, result, species, count };
 }
+
+// ---------- 処理場までの道（チームが登録した運び出しの道。実在の道路の案内ではない） ----------
+const R = 6371; // 地球の半径（km）
+function km([a1, o1], [a2, o2]) {
+  const r = Math.PI / 180;
+  const x = Math.sin(((a2 - a1) * r) / 2) ** 2 + Math.cos(a1 * r) * Math.cos(a2 * r) * Math.sin(((o2 - o1) * r) / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+export const routeKm = (points) => points.slice(1).reduce((n, p, i) => n + km(points[i], p), 0);
+
+// わな → いちばん近い道の点 → 道に沿って → 処理場
+export function routeFor(trap, road, facility) {
+  if (!facility || !road?.length) return [];
+  const here = [trap.lat, trap.lng];
+  let near = 0;
+  road.forEach((p, i) => { if (km(here, p) < km(here, road[near])) near = i; });
+  return [here, ...road.slice(near), [facility.lat, facility.lng]];
+}

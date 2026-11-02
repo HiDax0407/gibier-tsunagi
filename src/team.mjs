@@ -105,6 +105,8 @@ export function buildTeam({
       staleHoursDefault: traps.stale_hours_default,
       staleHoursChoices: traps.stale_hours_choices,
       list: traps.traps,
+      facility: traps.facility || null,
+      road: traps.road || [],
     },
     homeDistrict: 'kitazawa',
     // 活動と捕獲の記録・住民の通報

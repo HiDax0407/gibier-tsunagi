@@ -1,17 +1,129 @@
 {
-  "_note": "2026-11-02 期間中に作成。わなの地図のデモデータ。わなの番号・位置・担当・組み合わせはすべて架空。地図の場所は見本のための仮の位置で、実在の地区とは関係ない。『二人で行く』相手はチームが決めた組み合わせ（AI は人を選ばない）。checkedHoursAgo＝最後に見てから何時間か（画面を開いた時刻から数える）。機器は作らず、実機は既存のわなセンサーの知らせを受ける想定。",
-  "center": [35.2045, 133.6205],
+  "_note": "2026-11-02 期間中に作成。わなの地図のデモデータ。わなの番号・位置・担当・組み合わせはすべて架空。地図の場所は見本のための仮の位置で、実在の地区とは関係ない。『二人で行く』相手はチームが決めた組み合わせ（AI は人を選ばない）。checkedHoursAgo＝最後に見てから何時間か（画面を開いた時刻から数える）。機器は作らず、実機は既存のわなセンサーの知らせを受ける想定。 facility＝処理場（架空）。road＝チームが登録した運び出しの道（架空・実在の道路ではない）。minutes＝処理場までの目安の時間（チームが登録・架空）。",
+  "center": [
+    35.2045,
+    133.6205
+  ],
   "zoom": 15,
   "stale_hours_default": 36,
-  "stale_hours_choices": [12, 24, 36, 48],
+  "stale_hours_choices": [
+    12,
+    24,
+    36,
+    48
+  ],
   "traps": [
-    { "id": "w1", "no": 1, "lat": 35.2090, "lng": 133.6120, "owner": "岩田", "pair": "高木", "checkedHoursAgo": 3 },
-    { "id": "w2", "no": 2, "lat": 35.2101, "lng": 133.6188, "owner": "岩田", "pair": "高木", "checkedHoursAgo": 27 },
-    { "id": "w3", "no": 3, "lat": 35.2068, "lng": 133.6252, "owner": "佐伯", "pair": "高木", "checkedHoursAgo": 26, "signal": "caught" },
-    { "id": "w4", "no": 4, "lat": 35.2032, "lng": 133.6291, "owner": "佐伯", "pair": "岩田", "checkedHoursAgo": 50 },
-    { "id": "w5", "no": 5, "lat": 35.2010, "lng": 133.6160, "owner": "岩田", "pair": "高木", "checkedHoursAgo": 2 },
-    { "id": "w6", "no": 6, "lat": 35.1990, "lng": 133.6228, "owner": "小川", "pair": "岩田", "checkedHoursAgo": 30 },
-    { "id": "w7", "no": 7, "lat": 35.2054, "lng": 133.6140, "owner": "岩田", "pair": "佐伯", "checkedHoursAgo": 75 },
-    { "id": "w8", "no": 8, "lat": 35.1978, "lng": 133.6290, "owner": "佐伯", "pair": "高木", "checkedHoursAgo": 20 }
+    {
+      "id": "w1",
+      "no": 1,
+      "lat": 35.209,
+      "lng": 133.612,
+      "owner": "岩田",
+      "pair": "高木",
+      "checkedHoursAgo": 3,
+      "minutes": 18
+    },
+    {
+      "id": "w2",
+      "no": 2,
+      "lat": 35.2101,
+      "lng": 133.6188,
+      "owner": "岩田",
+      "pair": "高木",
+      "checkedHoursAgo": 27,
+      "minutes": 16
+    },
+    {
+      "id": "w3",
+      "no": 3,
+      "lat": 35.2068,
+      "lng": 133.6252,
+      "owner": "佐伯",
+      "pair": "高木",
+      "checkedHoursAgo": 26,
+      "signal": "caught",
+      "minutes": 14
+    },
+    {
+      "id": "w4",
+      "no": 4,
+      "lat": 35.2032,
+      "lng": 133.6291,
+      "owner": "佐伯",
+      "pair": "岩田",
+      "checkedHoursAgo": 50,
+      "minutes": 15
+    },
+    {
+      "id": "w5",
+      "no": 5,
+      "lat": 35.201,
+      "lng": 133.616,
+      "owner": "岩田",
+      "pair": "高木",
+      "checkedHoursAgo": 2,
+      "minutes": 10
+    },
+    {
+      "id": "w6",
+      "no": 6,
+      "lat": 35.199,
+      "lng": 133.6228,
+      "owner": "小川",
+      "pair": "岩田",
+      "checkedHoursAgo": 30,
+      "minutes": 8
+    },
+    {
+      "id": "w7",
+      "no": 7,
+      "lat": 35.2054,
+      "lng": 133.614,
+      "owner": "岩田",
+      "pair": "佐伯",
+      "checkedHoursAgo": 75,
+      "minutes": 17
+    },
+    {
+      "id": "w8",
+      "no": 8,
+      "lat": 35.1978,
+      "lng": 133.629,
+      "owner": "佐伯",
+      "pair": "高木",
+      "checkedHoursAgo": 20,
+      "minutes": 9
+    }
+  ],
+  "facility": {
+    "name": "北沢処理場（架空）",
+    "lat": 35.1948,
+    "lng": 133.6222
+  },
+  "road": [
+    [
+      35.2095,
+      133.615
+    ],
+    [
+      35.2078,
+      133.6196
+    ],
+    [
+      35.2048,
+      133.6212
+    ],
+    [
+      35.2016,
+      133.6218
+    ],
+    [
+      35.1986,
+      133.6226
+    ],
+    [
+      35.1962,
+      133.6224
+    ]
   ]
 }

@@ -4,11 +4,12 @@
 // 「二人で行く」相手はチームが決めた組み合わせ。AI は人を選ばない。
 import { ctx, view, esc, icon, renderTop, toast, voiceField, agoLabel, timeLabel, loadLeaflet, store } from '../ui.js';
 import { traps, setTrap, staleHours, addLog, addTeach, markSpoke, reports } from '../model.js';
-import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol } from '../lib/traps.js';
+import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm } from '../lib/traps.js';
 import { splitHealth } from '../lib/watch.js';
 
 let map = null;         // Leaflet の地図
 let markers = {};       // わなの id → 印
+let routeLine = null;   // 選んだわなから処理場までの道
 let selected = null;    // 選んでいるわな
 let autoTimer = null;   // 模擬の知らせ（自動）
 let lastSimNo = 0;
@@ -22,6 +23,7 @@ export function leaveMap() {
   autoTimer = null;
   if (map) { map.remove(); map = null; }
   markers = {};
+  routeLine = null;
 }
 
 export function renderMap() {
@@ -31,7 +33,7 @@ export function renderMap() {
   const choices = d.traps.staleHoursChoices.map((h) => `<option value="${h}"${h === staleHours() ? ' selected' : ''}>${h}時間</option>`).join('');
   view.innerHTML = `
     <h1>わなの地図</h1>
-    <p class="lead">わなの点を色で見せます。押すと、担当と「二人で行く」相手が出ます。</p>
+    <p class="lead">わなの点を色で見せます。押すと、担当と「二人で行く」相手と、処理場までの道が出ます。</p>
     <div class="legend" id="legend"></div>
     <div class="mapbox"><div id="map" role="region" aria-label="わなの地図"></div><p class="map-msg" id="map-msg">地図を読み込んでいます…</p></div>
     <div class="sim">
@@ -50,7 +52,7 @@ export function renderMap() {
       <li>見回りの決まり（どのくらいの間隔で見るか など）は、チームと県に確認してください。このアプリは決まりを答えません。</li>
       <li>わなの場所はチームの中だけで見ます。町の画面には数だけを出します。</li>
       <li>機器は作っていません。実際には、今あるわなセンサーの知らせを受ける想定です。知らせは LINE でも送れる形を考えています（今は送りません）。</li>
-      <li>地図の場所は見本のための仮の位置で、わなの点はすべて架空です。</li>
+      <li>地図の場所は見本のための仮の位置で、わなの点・処理場・運び出しの道はすべて架空です。道はチームが登録したもので、実在の道路の案内ではありません。</li>
     </ul>`;
   refresh();
   loadLeaflet().then(initMap).catch(() => {
@@ -73,7 +75,18 @@ function initMap(L) {
     minZoom: 5,
     attribution: '出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル（陰影起伏図）</a>（国土地理院）',
   }).addTo(map);
-  map.fitBounds(L.latLngBounds(traps().map((t) => [t.lat, t.lng])), { padding: [28, 28] });
+  const fac = d.facility;
+  const pts = traps().map((t) => [t.lat, t.lng]);
+  if (fac) pts.push([fac.lat, fac.lng]);
+  map.fitBounds(L.latLngBounds(pts), { padding: [28, 28] });
+  // チームが登録した運び出しの道（細い線）と処理場
+  if (d.road.length) L.polyline(d.road, { color: '#8c8c8c', weight: 3, dashArray: '2 6', interactive: false }).addTo(map);
+  if (fac) {
+    L.marker([fac.lat, fac.lng], {
+      icon: L.divIcon({ className: '', html: '<span class="fac">処</span>', iconSize: [34, 34], iconAnchor: [17, 17] }),
+      title: fac.name,
+    }).addTo(map);
+  }
   for (const t of traps()) {
     markers[t.id] = L.marker([t.lat, t.lng], { icon: trapIcon(L, t), keyboard: true, title: `${t.no}番のわな` })
       .addTo(map)
@@ -109,9 +122,31 @@ function refresh() {
   legend.innerHTML = STATE_ORDER.map((s) => `<span class="lg"><i class="trap s-${s} dot"></i>${STATE_LABEL[s]}<b>${n[s]}</b></span>`).join('');
   document.getElementById('trap-list').innerHTML = list.map((t) => `
     <button class="ti${t.id === selected ? ' on' : ''}" data-trap="${esc(t.id)}">${trapHtml(t)}<span><b>${STATE_LABEL[stateOf(t)]}</b><small>${esc(agoLabel(t.lastChecked))}に見た・担当 ${esc(t.owner)}さん</small></span></button>`).join('');
-  if (map && window.L) for (const t of list) markers[t.id]?.setIcon(trapIcon(window.L, t));
+  if (map && window.L) {
+    for (const t of list) markers[t.id]?.setIcon(trapIcon(window.L, t));
+    drawRoute(list.find((t) => t.id === selected));
+  }
   renderPanel(list.find((t) => t.id === selected));
   renderReports();
+}
+
+// 選んだわなから処理場までの道を、太い線で出す
+function drawRoute(t) {
+  routeLine?.remove();
+  routeLine = null;
+  const d = ctx.data.traps;
+  if (!t || !d.facility) return;
+  const st = stateOf(t);
+  routeLine = window.L.polyline(routeFor(t, d.road, d.facility), {
+    color: st === 'caught' ? '#161616' : '#2f5d50', weight: 5, opacity: 0.85, interactive: false,
+  }).addTo(map);
+}
+
+function routeText(t) {
+  const d = ctx.data.traps;
+  if (!d.facility) return '';
+  const k = routeKm(routeFor(t, d.road, d.facility));
+  return `<p class="route">${icon('truck')}<span>${esc(d.facility.name)}まで 約${k.toFixed(1)}km・目安 約${t.minutes}分<small>チームが登録した運び出しの道と時間です（架空）。道の状態や運び方の決まりは、チームと確かめてください。</small></span></p>`;
 }
 
 function renderPanel(t) {
@@ -126,6 +161,7 @@ function renderPanel(t) {
       <p class="tp-sub">最後に見た：${esc(agoLabel(t.lastChecked))}${t.signalAt && st === 'caught' ? `　知らせ：${esc(timeLabel(t.signalAt))}` : ''}</p>
       <div class="pair"><div><span>担当</span><b>${esc(t.owner)}さん</b></div><div><span>二人で行く</span><b>${esc(t.pair)}さん</b></div></div>
       <p class="muted" style="margin:6px 0 0">組み合わせはチームが決めたものです。AI は人を選びません。</p>
+      ${routeText(t)}
       ${st === 'caught' ? (t.goingAt
         ? `<p class="going">${icon('team')}${esc(t.owner)}さんと${esc(t.pair)}さんが向かっています（${esc(timeLabel(t.goingAt))}）</p>`
         : `<button class="primary" data-trap-go="${esc(t.id)}" style="margin-top:14px">二人で向かう（教えた記録にも残す）</button>`) : ''}

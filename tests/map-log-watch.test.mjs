@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRaw, buildTeam } from '../src/team.mjs';
-import { trapState, countStates, placeTraps, nextSignalTrap, parsePatrol } from '../public/lib/traps.js';
+import { trapState, countStates, placeTraps, nextSignalTrap, parsePatrol, routeFor, routeKm } from '../public/lib/traps.js';
 import { findGaps, draftTable, draftCsv, districtTotals, logsForMonth, DEFAULT_COLUMNS } from '../public/lib/log.js';
 import { splitHealth, daysSince, watchList } from '../public/lib/watch.js';
 import { missingSteps, nextQuestion, KATA } from '../public/lib/kikikata.js';
@@ -52,6 +52,19 @@ test('見回った人の話から、わなの番号・結果・獣の種類・�
   assert.equal(parsePatrol('七番にイノシシが二頭入っとった', traps).count, 2);
   assert.equal(parsePatrol('見回りに行ってきた', traps).result, null);
   assert.equal(parsePatrol('9番', traps).trapId, null); // ないわな
+});
+
+test('処理場までの道：わなから道に入り、処理場で終わる。距離は数km・目安の時間はチームが登録', () => {
+  const { road, facility, list } = team.traps;
+  for (const t of list) {
+    const r = routeFor(t, road, facility);
+    assert.deepEqual(r[0], [t.lat, t.lng]);
+    assert.deepEqual(r.at(-1), [facility.lat, facility.lng]);
+    const d = routeKm(r);
+    assert.ok(d > 0.3 && d < 5, `${t.id} ${d}`);
+    assert.ok(Number.isInteger(t.minutes), t.id);
+  }
+  assert.equal(routeKm([[35, 135], [35, 135]]), 0);
 });
 
 // ---------- 活動と捕獲の記録 ----------

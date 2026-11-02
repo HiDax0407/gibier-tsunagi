@@ -316,6 +316,10 @@ body.big .mapbox { zoom: .8334; }
 .leaflet-tile-pane { opacity: .5; }
 .leaflet-control-attribution { font-size: 11px; }
 .rmark { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: #fff; border: 2px solid var(--warn); color: var(--warn); font-weight: 800; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.fac { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 800; font-size: 15px; border: 2.5px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.route { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; font-weight: 700; font-size: 15.5px; }
+.route .ico { color: var(--accent); }
+.route small { display: block; font-weight: 500; font-size: 12.5px; color: var(--sub); }
 .rmark.sm { width: 24px; height: 24px; font-size: 12px; box-shadow: none; }
 .sim { display: grid; gap: 8px; margin: 12px 0 0; }
 .sim .outline { display: flex; align-items: center; justify-content: center; gap: 8px; }
