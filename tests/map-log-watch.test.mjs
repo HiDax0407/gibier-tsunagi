@@ -4,7 +4,7 @@ import { loadRaw, buildTeam } from '../src/team.mjs';
 import { trapState, countStates, placeTraps, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir } from '../public/lib/traps.js';
 import { findGaps, draftTable, draftCsv, districtTotals, logsForMonth, DEFAULT_COLUMNS } from '../public/lib/log.js';
 import { splitHealth, daysSince, watchList } from '../public/lib/watch.js';
-import { missingSteps, nextQuestion, splitTejun, KATA } from '../public/lib/kikikata.js';
+import { missingSteps, nextQuestion, splitTejun, stepSentences, KATA } from '../public/lib/kikikata.js';
 import { applyDecided, stopRisks } from '../public/lib/team-rows.js';
 import { countDistrict, townRows, townTotals } from '../public/lib/town.js';
 
@@ -104,8 +104,19 @@ test('月の一覧では、日時のない記録も落とさず最後に並べ�
   assert.deepEqual(nov, ['a5', 'a6']);
 });
 
-test('地区の数は、町へ出したものだけを数える', () => {
+test('地区の数は、町へ出したものだけを数える。月で絞れる（町の担当の方向け）', () => {
   assert.deepEqual(districtTotals(team.logs, 'kitazawa'), { deer: 1, boar: 1, other: 0, patrol: 1, dispatch: 0 });
+  assert.deepEqual(districtTotals(team.logs, 'kitazawa', '2026-10'), { deer: 1, boar: 1, other: 0, patrol: 1, dispatch: 0 });
+  assert.deepEqual(districtTotals(team.logs, 'kitazawa', '2026-11'), { deer: 0, boar: 0, other: 0, patrol: 0, dispatch: 0 });
+});
+
+test('工程の番号を押すと、その工程の言葉が出てくる文だけが本人の言葉のまま読める', () => {
+  const texts = [team.veteranTalk.text];
+  const sp = stepSentences(texts, '止め・搬送');
+  assert.deepEqual(sp.tejun, ['かかっとったら、仲間を呼んで二人以上で行く。', '止めたら、とにかく早く冷やして処理場まで運ぶ。']);
+  assert.deepEqual(sp.chui, []);
+  assert.deepEqual(stepSentences(texts, 'わなの設置・点検'), { tejun: [], chui: [] });
+  for (const s of [...sp.tejun, ...sp.chui]) assert.ok(team.veteranTalk.text.includes(s), s);
 });
 
 test('記録と下書きに、金額や交付金の判定の欄を持たない', () => {

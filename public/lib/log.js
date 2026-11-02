@@ -89,8 +89,9 @@ export function draftCsv(logs, columns, districtNames = {}) {
 }
 
 // 地区ごとの数（町へ出したものだけ）：シカ・イノシシの頭数、見回りの回数、出動の回数
-export function districtTotals(logs, districtId) {
-  const sent = sentOnly(logs).filter((r) => r.district === districtId);
+// month（"2026-11"）を渡すと、その月の分だけ。渡さなければ全部
+export function districtTotals(logs, districtId, month = null) {
+  const sent = sentOnly(logs).filter((r) => r.district === districtId && (!month || monthOf(fmtDateTime(r.datetime)) === month));
   const heads = (sp) => sent.filter((r) => r.kind === '捕獲' && r.species === sp).reduce((n, r) => n + (Number(r.count) || 0), 0);
   return {
     deer: heads('シカ'),

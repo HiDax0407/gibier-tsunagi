@@ -1,14 +1,14 @@
 :root {
   --ink: #161616;
   --sub: #5c5c5c;
-  --faint: #8c8c8c;
+  --faint: #6b6b6b;      /* 薄い字：白地で 5.3:1（4.5:1 以上。高齢の方にも読める濃さ） */
   --line: #e2e2e2;
   --soft: #f4f4f4;
   --bg: #ffffff;
   --accent: #2f5d50;      /* 深緑：アクセントはこの1色だけ */
   --accent-soft: #e9f0ee;
   --tab-h: 62px;
-  --warn: #b26a12;        /* 注意の色：わなを「しばらく見ていない」ときと、抜けの印だけに使う */
+  --warn: #8f5400;        /* 注意の色（白地で 6:1 以上）：わなを「しばらく見ていない」ときと、抜けの印だけに使う */
   --warn-soft: #fbf1e4;
   --gray: #b3b3b3;
 }
@@ -491,7 +491,7 @@ svg.chart [data-tip] { cursor: pointer; outline: none; }
 .links small { display: block; font-size: 12.5px; color: var(--sub); }
 
 @media print {
-  .top, .tabs, .no-print, .cta { display: none !important; }
+  .top, .tabs, .no-print, .cta, .toast { display: none !important; }
   body { padding: 0; font-size: 11pt; }
   main { max-width: none; padding: 0; }
   .print-only { display: block; }
@@ -506,16 +506,16 @@ svg.chart [data-tip] { cursor: pointer; outline: none; }
 .exp-line b { font-size: 26px; line-height: 1; white-space: nowrap; }
 .exp-line small { font-size: 14px; color: var(--sub); font-weight: 500; }
 .av.new b { outline: 2px solid var(--accent); outline-offset: 2px; }
-.quote .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-.quote .split > div { background: #fff; border-radius: 10px; padding: 8px 10px; }
-.quote .split .c { border-left: 3px solid var(--ink); }
-.quote .split h4 { margin: 0 0 4px; font-size: 13px; }
-.quote .split ul { margin: 0; padding-left: 1.1em; font-size: 14px; line-height: 1.55; }
-.quote .split li { margin-bottom: 3px; }
+.quote .split, .step-panel .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.quote .split > div, .step-panel .split > div { background: #fff; border-radius: 10px; padding: 8px 10px; }
+.quote .split .c, .step-panel .split .c { border-left: 3px solid var(--ink); }
+.quote .split h4, .step-panel .split h4 { margin: 0 0 4px; font-size: 13px; }
+.quote .split ul, .step-panel .split ul { margin: 0; padding-left: 1.1em; font-size: 14px; line-height: 1.55; }
+.quote .split li, .step-panel .split li { margin-bottom: 3px; }
 .ai-tag { display: inline-block; font-size: 11px; color: var(--sub); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; margin-left: auto; }
 form.answer { margin-top: 12px; display: grid; gap: 8px; }
 form.answer label { font-size: 13px; font-weight: 700; }
-@media (max-width: 380px) { .quote .split { grid-template-columns: 1fr; } }
+@media (max-width: 380px) { .quote .split, .step-panel .split { grid-template-columns: 1fr; } }
 
 .trow .no.on { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 14px; font-weight: 700; }
 .table .head em { font-style: normal; font-size: 11.5px; color: var(--sub); margin-left: 10px; }
@@ -525,3 +525,51 @@ form.answer label { font-size: 13px; font-weight: 700; }
 
 /* 残した話へ動いたとき、見出しが上の帯に隠れないように */
 #talks { scroll-margin-top: 56px; }
+
+/* ---------- 視認性と押しやすさ（誰でも使えるように：文字は 4.5:1 以上・押す所は 44px 以上） ---------- */
+.tabs a { font-size: 12px; }
+.trap.s-empty { background: #767676; }                       /* 灰色の点の白い数字が読めるように */
+.zoom { min-height: 44px; }
+.top .back { min-height: 44px; display: inline-flex; align-items: center; }
+button.outline.sm { min-height: 44px; }
+.check { align-items: center; padding: 6px 0; }
+.check button { width: 36px; height: 36px; font-size: 18px; margin-top: 0; }
+.check span { padding: 8px 0; cursor: pointer; }             /* 文字の所を押しても印が付く */
+button.link { min-height: 44px; padding: 10px 4px; }
+button.link.reset { min-height: 44px; }
+.gap-list li { padding: 0; }
+.gap-list a { display: block; padding: 10px 0 2px; }
+.gap-list span { display: block; padding-bottom: 10px; }
+.ph summary, .addph { min-height: 44px; margin-top: 2px; }
+details.type-in summary, .cols summary, .wset summary { min-height: 44px; display: flex; align-items: center; }
+.auto { min-height: 44px; }
+.auto input, .cols input { width: 24px; height: 24px; }
+.cols li { min-height: 44px; }
+.cols .up { min-height: 44px; }
+
+/* 誰向けの画面か（チームの画面の上。町の担当の方と住民の方の入口） */
+.audience { display: flex; flex-wrap: wrap; gap: 8px; margin: -6px 0 14px; }
+.audience a {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 4px 12px 4px 8px;
+  border: 1px solid var(--line); border-radius: 999px; font-size: 13.5px; font-weight: 700; color: var(--sub); text-decoration: none;
+}
+.audience a .ico { width: 20px; height: 20px; }
+main summary { padding: 10px 0; }
+.gap-list a { padding: 12px 0 2px; }
+
+/* 工程の番号（緑）を押すと、その工程で残った本人の言葉が読める（新しく入る人向け） */
+button.no.on { border: 0; cursor: pointer; font: inherit; padding: 0; }
+button.no.on[aria-expanded="true"] { outline: 3px solid var(--accent); outline-offset: 2px; }
+.step-panel { border: 1.5px solid var(--accent); border-radius: 14px; padding: 12px 14px; margin: 12px 0 4px; background: var(--accent-soft); }
+.step-panel .sp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 4px; }
+.step-panel .sp-head b { font-size: 17px; }
+.step-panel .sp-head button { margin-left: auto; }
+.step-panel .split > div { background: #fff; }
+.step-panel .ask-foot a { font-weight: 700; color: var(--accent); }
+
+/* 話す画面：進み具合（残った工程の数） */
+.talk-progress { display: flex; align-items: baseline; gap: 8px; margin: -2px 0 10px; font-size: 14px; color: var(--sub); }
+.talk-progress b { font-size: 22px; color: var(--accent); }
+.talk-progress small { font-size: 14px; }
+details > summary, .wedit summary, .tview summary, .cols summary { min-height: 44px; padding: 10px 0; box-sizing: border-box; }
+button.link { padding: 10px 8px; }

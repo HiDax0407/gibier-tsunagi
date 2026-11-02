@@ -31,6 +31,19 @@ export function stepCoverage(texts, steps) {
 
 export const missingSteps = (texts, steps) => stepCoverage(texts, steps).filter((x) => !x.heard).map((x) => x.step);
 
+// その工程の言葉が出てくる文だけを、話に出てきた順に集め、手順と注意に分ける（文は本人の言葉のまま・言い換えない）
+export function stepSentences(texts, step) {
+  const words = STEP_WORDS[step] || [step];
+  const tejun = [];
+  const chui = [];
+  for (const text of texts) {
+    const sp = splitTejun(text);
+    for (const s of sp.tejun) if (words.some((w) => s.includes(w))) tejun.push(s);
+    for (const s of sp.chui) if (words.some((w) => s.includes(w))) chui.push(s);
+  }
+  return { tejun, chui };
+}
+
 // ---------- 「とにかく早く」のような、量の分からない言い方 ----------
 // 勘どころは、たいてい「どのくらい」に隠れている。数のない言い方を見つけたら、そこを先に聞く（感覚と量）。
 const VAGUE = [

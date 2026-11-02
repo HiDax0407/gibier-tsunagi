@@ -6,7 +6,7 @@ import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 import { districtTotals } from './lib/log.js';
 import { splitHealth } from './lib/watch.js';
-import { stepCoverage, nextQuestion, splitTejun } from './lib/kikikata.js';
+import { stepCoverage, nextQuestion, splitTejun, stepSentences } from './lib/kikikata.js';
 import { toCsvText } from './lib/csv.js';
 import { logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
 import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
@@ -65,8 +65,11 @@ function renderTeam() {
     const who = r.people.map((p) => `<span class="av${r.added?.includes(p) ? ' new' : ''}"><b>${esc(p.slice(0, 1))}</b>${esc(p)}</span>`).join('');
     const pill = r.coverage === 'single' ? '<span class="pill">1人だけ</span>' : r.coverage === 'empty' ? '<span class="pill">空き</span>' : '';
     const words = heard.get(r.role);
+    const no = words
+      ? `<button class="no on" data-step="${esc(r.role)}" aria-expanded="${openStep === r.role}" aria-label="${esc(r.role)}で残った言葉を読む" title="押すと、この工程で残った本人の言葉が読めます">${i + 1}</button>`
+      : `<span class="no">${i + 1}</span>`;
     return `<li class="trow">
-      <span class="no${words ? ' on' : ''}"${words ? ' title="ベテランの言葉が残った工程"' : ''}>${i + 1}</span>
+      ${no}
       <div><div class="role">${esc(r.role)}</div><div class="lic">${licensePill(r.license, { sm: true })}</div></div>
       <div class="who">${who}${pill}</div>
     </li>`;
@@ -82,6 +85,7 @@ function renderTeam() {
 
   view.innerHTML = `
     <h1>${esc(areaName)}のチーム</h1>
+    <p class="audience"><a href="#/town">${icon('town')}町の担当の方へ：地区ごとの数</a><a href="#/report">${icon('chat')}住民の方へ：見かけたら知らせる</a></p>
     <p class="goal-head">名産として出せる状態まで</p>
     <p class="goal-num">${left === 0 ? 'そろいました' : `あと${left}<small>つ</small>`}</p>
     <div class="segments" style="grid-template-columns:repeat(${total},1fr)" role="img" aria-label="2人以上いる工程 ${ok}/${total}">
@@ -89,12 +93,13 @@ function renderTeam() {
     </div>
     <div class="exp-line"><span>ベテランの経験が本人の言葉で残った工程</span><b>${nHeard}<small>/${total}</small></b></div>
     <ul class="table">
-      <li class="head"><span>工程<em><i class="no-dot"></i>＝言葉が残った工程</em></span><span>担当</span></li>
+      <li class="head"><span>工程<em><i class="no-dot"></i>＝言葉が残った工程（押すと読める）</em></span><span>担当</span></li>
       ${rows}
     </ul>
+    <section id="step-panel">${stepPanelHtml()}</section>
     ${todayNotes.length ? `<ul class="today-notes">${todayNotes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
     <p class="muted">${esc(data.licenseCheckNote)}</p>
-    <p class="muted" style="margin-top:-4px">番号が緑の工程は、話す画面で残した話にその工程が出てきた印です。人名・数は架空のデモです。</p>
+    <p class="muted" style="margin-top:-4px">番号が緑の工程は、話す画面で残した話にその工程が出てきた印です。押すと、その工程で残った本人の言葉が読めます。人名・数は架空のデモです。</p>
     <section class="checks">
       <h3>ほかにチームが確かめること</h3>
       ${manual}
@@ -113,6 +118,30 @@ function renderTeam() {
     <button class="outline wide" data-go="town" style="margin-top:12px">${icon('town')}町の地区一覧（町の担当の方向け）</button>
     <button class="link reset" data-scene="asa">撮影用：「ある朝」の最初の状態にする</button>
     <button class="link reset" data-reset style="margin-top:0">デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
+}
+
+// 緑の番号を押したときに出る「この工程で残った言葉」（新しく入る人が、先輩の言葉を工程ごとに読める）
+let openStep = null;
+function stepPanelHtml() {
+  if (!openStep) return '';
+  const talks = savedTalks();
+  const sp = stepSentences(talks.map((t) => t.text), openStep);
+  if (!sp.tejun.length && !sp.chui.length) return '';
+  const who = [...new Set(talks.map((t) => t.who))].join('・');
+  const li = (list) => list.map((t) => `<li>${esc(t)}</li>`).join('') || '<li class="muted">（なし）</li>';
+  return `<div class="step-panel">
+    <div class="sp-head"><b>「${esc(openStep)}」で残った言葉</b><span class="muted">${esc(who)}さん・本人の言葉のまま</span><button class="outline sm" data-step-close>閉じる</button></div>
+    <div class="split"><div><h4>手順</h4><ul>${li(sp.tejun)}</ul></div><div class="c"><h4>注意</h4><ul>${li(sp.chui)}</ul></div></div>
+    <div class="ask-foot"><button class="say" data-say-step>${icon('speaker')}声で聞く</button><a href="#/talk">この工程を深く聞く →</a></div>
+    <p class="muted" style="margin:6px 0 0">言葉の照らし合わせで集めた文です。やり方として正しいかは、このアプリは答えません。新しく入る人は、先輩と二人で確かめてください。</p>
+  </div>`;
+}
+function showStepPanel() {
+  const el = document.getElementById('step-panel');
+  if (!el) return;
+  el.innerHTML = stepPanelHtml();
+  document.querySelectorAll('button.no.on').forEach((b) => b.setAttribute('aria-expanded', String(b.dataset.step === openStep)));
+  if (openStep) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ---------- 3 止まる役割 ----------
@@ -251,9 +280,11 @@ function renderTalk() {
   const qKey = questionKey();
   const qShown = aiCache.q.get(qKey) || q;
 
+  const nHeard = cover.filter((c) => c.heard).length;
   view.innerHTML = `
     <h1>話す</h1>
     <p class="talk-lead">ボタンを押して、いつもの言葉で話してください。</p>
+    <p class="talk-progress">本人の言葉で残った工程 <b>${nHeard}</b><small>/${steps.length}</small><span>${nHeard === steps.length ? '全部そろいました' : `あと${steps.length - nHeard}つ`}</span></p>
     <div class="center">
       <button class="mic${SR ? '' : ' off'}" data-mic aria-pressed="${listening}" aria-label="押して話す">${listening ? ICON.stop : ICON.mic}</button>
       <div class="mic-label" id="mic-label">${SR ? (listening ? '聞いています。終わったら、もう一度押す' : '押して話す') : 'この端末では声の入力が使えません。下に文字で入れてください'}</div>
@@ -482,8 +513,21 @@ function downloadCsv(month) {
 
 // ---------- 6 町の画面（町の担当の方向け） ----------
 // 地区ごとの数だけを出す。個人名は出さない。
-function renderTown() {
+// 町の担当の方は月ごと（または全部）で数を見る。month＝"2026-11"／"all"
+function townMonth(arg) {
+  return arg === 'all' ? 'all' : /^\d{4}-\d{2}$/.test(arg || '') ? arg : monthOf(todayStr());
+}
+function townLive(month) {
+  const m = month === 'all' ? null : month;
+  return {
+    ...districtTotals(logs(), data.homeDistrict, m),
+    reports: reports().filter((r) => r.district === data.homeDistrict && (!m || String(r.datetime || '').startsWith(m))).length,
+  };
+}
+function renderTown(arg) {
   renderTop({ back: '#/team', here: '町の地区一覧' });
+  const month = townMonth(arg);
+  const monthText = month === 'all' ? 'すべての月' : monthLabel(month);
   const rowsNow = teamRows();
   // チームの表と同じ数え方（話す画面で残した話に、その工程の言葉が出てきたか）
   const heardSteps = stepCoverage(talkTexts(), rowsNow.map((r) => r.role)).filter((c) => c.heard).map((c) => c.step);
@@ -494,8 +538,7 @@ function renderTown() {
       records: teachRecords(),
       experienceRoles: heardSteps,
     }),
-    ...districtTotals(logs(), data.homeDistrict),
-    reports: reports().filter((r) => r.district === data.homeDistrict).length,
+    ...townLive(month),
   };
   const rows = townRows(data.town.districts, live);
   const totals = townTotals(rows);
@@ -524,35 +567,41 @@ function renderTown() {
     <p class="kicker">町の担当の方向け</p>
     <h1>${esc(strip(data.town.name))}の<br>地区一覧</h1>
     <p class="lead">地区ごとの数だけを出します。個人名は出しません。</p>
+    <div class="month">
+      ${month === 'all' ? '<span></span>' : `<button class="mbtn" data-go="town/${shiftMonth(month, -1)}" aria-label="前の月">${ICON.back}</button>`}
+      <b>${esc(monthText)}</b>
+      ${month === 'all' ? '<span></span>' : `<button class="mbtn" data-go="town/${shiftMonth(month, 1)}" aria-label="次の月">${ICON.next}</button>`}
+    </div>
+    <p class="muted" style="margin:0 0 10px">シカ・イノシシ・見回り・住民の知らせは、${esc(monthText)}の数。役割・工程・手を挙げた人・教えた回数は今の状態です。
+      <button class="link" data-go="town/${month === 'all' ? monthOf(todayStr()) : 'all'}" style="padding:4px 0">${month === 'all' ? '今月だけを見る' : 'すべての月を見る'}</button></p>
     ${cards}
     <ul class="notes">
-      <li>北沢地区の数は、チームの表・募集カード・教えた記録から数えています。南沢・東原は画面を見せるための架空の数です。</li>
+      <li>北沢地区の数は、チームの表・募集カード・教えた記録・町へ出した記録から数えています。南沢・東原は画面を見せるための架空の見本の数で、月で変わりません。</li>
       <li>「経験が残った工程」は、話す画面で残した話にその工程の言葉が出てきた数です（チームの表と同じ。今は言葉の照らし合わせで、Claude をつなぐと工程ごとにまとめてから数えます）。</li>
       <li>シカ・イノシシ・見回りの数は、チームが確かめて「町へ出す」を押した記録だけを数えます。住民の知らせは件数だけです。</li>
       <li>計画の見直しや報告の材料に使えるかは、町の窓口で確かめてください（要確認）。</li>
     </ul>
     <a class="goal-link" href="#/impact" style="margin-top:20px"><span class="gl-k">目的：害獣の被害を減らす</span><span class="gl-v"><span>被害の知らせ・捕獲・見回りの移り変わりをグラフで見る</span></span><span class="gl-go">見える化 ${ICON.next}</span></a>
-    <h2>県へ上げる数の下書き</h2>
-    <p class="muted" style="margin-top:-6px">地区ごとの数と合計です。個人名は出しません。交付金・報償金の対象かどうかと金額は判断しません。</p>
+    <h2>県へ上げる数の下書き（${esc(monthText)}）</h2>
+    <p class="muted" style="margin-top:-6px">地区ごとの数と合計です。個人名は出しません。交付金・報償金の対象かどうかと金額は判断しません。数に入るのは、チームが確かめて「町へ出す」を押した記録だけです。</p>
     <div class="tscroll">${sumTable}</div>
     <div class="row2">
       <button class="outline" data-print>印刷する</button>
-      <button class="outline" data-town-csv>書き出す（CSV）</button>
+      <button class="outline" data-town-csv="${esc(month)}">書き出す（CSV）</button>
     </div>
     </div>
     <section class="print-only">
-      <h1>県へ上げる数の下書き　${esc(strip(data.town.name))}</h1>
+      <h1>県へ上げる数の下書き　${esc(strip(data.town.name))}　${esc(monthText)}</h1>
       ${sumTable}
       <p>町の確認者（署名）＿＿＿＿＿＿＿＿＿＿　　確認日＿＿＿＿＿＿</p>
       <p class="small">チームが確かめて町へ出した記録の数です。町名・地区名・数はすべて架空のデモです。</p>
     </section>`;
 }
 
-function townCsv() {
-  const live = { ...districtTotals(logs(), data.homeDistrict), reports: reports().filter((r) => r.district === data.homeDistrict).length };
-  const { rows, total } = townTotals(townRows(data.town.districts, live));
+function townCsv(month) {
+  const { rows, total } = townTotals(townRows(data.town.districts, townLive(month)));
   const line = (r) => [r.name, r.deer, r.boar, r.patrol, r.reports];
-  saveCsv('県へ上げる数の下書き.csv', toCsvText(['地区', 'シカ（頭）', 'イノシシ（頭）', '見回り（回）', '住民の知らせ（件）'], [...rows.map(line), line({ name: '合計', ...total })]));
+  saveCsv(`県へ上げる数の下書き_${month === 'all' ? '全部' : month}.csv`, toCsvText(['地区', 'シカ（頭）', 'イノシシ（頭）', '見回り（回）', '住民の知らせ（件）'], [...rows.map(line), line({ name: '合計', ...total })]));
 }
 
 // ---------- 切り替え ----------
@@ -591,7 +640,7 @@ function route() {
   renderTabs(tab);
   if (name === 'cards' && arg) renderCard(arg);
   else if (name === 'teach') renderTeach(arg);
-  else if (name === 'town') renderTown();
+  else if (name === 'town') renderTown(arg);
   else if (name === 'log') renderLog(arg);
   else if (name === 'report') renderReport();
   else if (name === 'watch') renderWatch();
@@ -617,7 +666,8 @@ document.addEventListener('click', (e) => {
     speak(document.getElementById('q-text')?.textContent || '', e.target.closest('[data-say-q]'));
     return;
   }
-  if (e.target.closest('[data-town-csv]')) { townCsv(); return; }
+  const tcsv = e.target.closest('[data-town-csv]');
+  if (tcsv) { townCsv(townMonth(tcsv.dataset.townCsv)); return; }
   if (e.target.closest('[data-reset]')) {
     if (!confirm('この端末で足した記録・押した「はい」・設定を消して、デモを最初の状態に戻します。よろしいですか？')) return;
     clearLocal();
@@ -632,6 +682,17 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  const stepBtn = e.target.closest('[data-step]');
+  if (stepBtn) { openStep = openStep === stepBtn.dataset.step ? null : stepBtn.dataset.step; showStepPanel(); return; }
+  if (e.target.closest('[data-step-close]')) { openStep = null; showStepPanel(); return; }
+  if (e.target.closest('[data-say-step]')) {
+    const sp = stepSentences(savedTalks().map((t) => t.text), openStep || '');
+    speak([...sp.tejun, ...sp.chui].join(''), e.target.closest('[data-say-step]'));
+    return;
+  }
+  // 「チームが確かめること」は、文字の所を押しても印が付く
+  const crow = e.target.closest('.check');
+  if (crow && !e.target.closest('[data-goal]')) { crow.querySelector('[data-goal]')?.click(); return; }
   const goal = e.target.closest('[data-goal]');
   if (goal) {
     const checks = store.get('goalChecks', {});
