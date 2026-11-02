@@ -164,7 +164,7 @@ function renderPanel(t) {
       ${routeText(t)}
       ${st === 'caught' ? (t.goingAt
         ? `<p class="going">${icon('team')}${esc(t.owner)}さんと${esc(t.pair)}さんが向かっています（${esc(timeLabel(t.goingAt))}）</p>`
-        : `<button class="primary" data-trap-go="${esc(t.id)}" style="margin-top:14px">二人で向かう（教えた記録にも残す）</button>`) : ''}
+        : `<button class="primary" data-trap-go="${esc(t.id)}" style="margin-top:14px">二人で向かう</button><p class="muted" style="margin:6px 0 0;text-align:center">押すと出動の記録が残り、新しく入った人と一緒なら「教えた記録」にも残ります。</p>`) : ''}
       <h3>見回った人が話す</h3>
       <p class="muted" style="margin:-4px 0 8px">例：「3番、シカが1頭かかっとった」「5番は空やった」。話すだけで色が変わります。</p>
       <form class="patrol" data-trap="${esc(t.id)}">

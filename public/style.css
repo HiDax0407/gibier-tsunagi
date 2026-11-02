@@ -423,7 +423,8 @@ table.sum tbody tr:last-child th, table.sum tbody tr:last-child td { font-weight
 .watch { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 0 0 12px; }
 .watch.over { border: 2px solid var(--warn); }
 .wh { display: flex; gap: 12px; align-items: center; }
-.wh b { display: block; font-size: 19px; font-weight: 800; }
+.wh .av { flex: none; }
+.wh > div b { display: block; font-size: 19px; font-weight: 800; }
 .wh span:not(.av) { font-size: 14px; color: var(--sub); }
 .walert { background: var(--warn-soft); color: var(--warn); font-weight: 800; border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; font-size: 16px; }
 .walert small { display: block; font-weight: 600; font-size: 12.5px; }

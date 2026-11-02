@@ -23,7 +23,7 @@ export function renderWatch() {
         ${w.over ? `<div class="walert">${w.days}日話していません。${esc(w.notify.join('と'))}に知らせます。<small>デモでは、この画面に出すだけです。</small></div>` : ''}
         <p class="wset">${esc(setting)}</p>
         ${singles.has(w.name) ? `<button class="outline sm" data-go="risk">${esc(w.name)}さんが休むと止まる役割を見る</button>` : ''}
-        <details class="wedit"><summary>設定を変える（本人と家族・チームで決める）</summary>
+        <details class="wedit"><summary>設定を変える</summary><p class="muted" style="margin:0">本人と家族・チームで決めます。</p>
           <div class="wrow">何日話していないとき
             ${DAYS.map((d) => `<button class="chip" data-watch-days="${esc(w.name)}:${d}" aria-pressed="${w.afterDays === d}">${d}日</button>`).join('')}</div>
           <div class="wrow">知らせる先
