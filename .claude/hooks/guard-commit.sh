@@ -13,12 +13,16 @@ if [ "$cmd" = "__PARSE_ERROR__" ]; then
   exit 2
 fi
 
-case "$cmd" in
+# 大文字・小文字の違いですり抜けないよう、小文字にそろえてから調べる
+lc=$(printf '%s' "$cmd" | tr '[:upper:]' '[:lower:]')
+case "$lc" in
   *git*) ;;
   *) exit 0 ;;
 esac
 
-if printf '%s' "$cmd" | grep -Eq -- '--no-verify|commit([[:space:]].*)?[[:space:]]-n([[:space:]]|$)|hooksPath|core\.hooks'; then
+# 検査を飛ばす指定：--no-verify（--no-v などの省略形も）、commit の短い指定に n を含むもの（-n・-an など）、
+# フックの場所の変更、git の設定を環境変数で差し込むもの
+if printf '%s' "$lc" | grep -Eq -- '--no-v|commit([[:space:]].*)?[[:space:]]-[a-z]*n[a-z]*([[:space:]]|$)|hookspath|core\.hooks|git_config|-c[[:space:]]*core\.'; then
   echo "秘密情報の検査を飛ばす指定（--no-verify / core.hooksPath の変更）は使えません。" >&2
   exit 2
 fi
