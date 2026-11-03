@@ -99,6 +99,8 @@ export const server = createServer(async (req, res) => {
     }
   }
 
+  // サービスワーカーは常に最新を使う（古い画面が残らないように）
+  const noStore = url.pathname === '/sw.js';
   // 画面のファイル（public/ の外は出さない）
   const rel = url.pathname === '/' ? '/index.html' : url.pathname;
   const file = normalize(join(publicDir, rel));
@@ -108,7 +110,7 @@ export const server = createServer(async (req, res) => {
   }
   try {
     const body = await readFile(file);
-    res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' });
+    res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream', ...(noStore ? { 'Cache-Control': 'no-store' } : {}) });
     res.end(body);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

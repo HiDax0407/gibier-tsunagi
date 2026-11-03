@@ -582,3 +582,6 @@ button.link { padding: 10px 8px; }
 .next-step { display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; font-size: 14px; }
 .next-step b { font-size: 15px; }
 .next-step a { color: var(--accent); font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+
+/* 電波がないときの一行 */
+.offline { max-width: 680px; margin: 8px auto 0; padding: 8px 16px; font-size: 13.5px; color: var(--sub); background: var(--soft); border-left: 3px solid var(--sub); border-radius: 0 10px 10px 0; }

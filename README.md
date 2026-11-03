@@ -124,6 +124,9 @@
 2. 本人と家族・チームで決めた日数（2・3・5・7日）を超えると、決めた知らせ先（家族・チーム）に知らせる（デモでは画面に出すだけ）。その人が休むと止まる役割もすぐ見られる
 3. 体のぐあいは AI が判断しない。話した言葉に体のぐあいの話が入っていたら、その文は残さない
 
+### 電波のない所でも
+山の中で電波がなくても、一度開いた画面は端末に残っていて開けます（サービスワーカー。つながっているときは必ず最新を取り、取れないときだけ端末のものを使う）。話した言葉や記録はもともと端末の中にあるので、電波がなくても残り、つながってからも同じように使えます。地図の地理院タイルと Claude への頼みだけは通信が要ります。
+
 ### このアプリがしないこと
 
 - **話した言葉は本人のもの**：残した話の「使ってよい範囲」（チームの中で使ってよい／まだ本人だけ）は本人が決め、本人が消せる。「本人だけ」の話はチームの表の数にも工程ごとの言葉にも入らない。書き出しには誰が・いつ・範囲を必ず付け、本人だけの話は書き出さない。AI は範囲を広げない・言葉を足さない（ログインがないので、範囲は本人の了承の宣言であり、閲覧を強制的に制限するものではない）
@@ -205,7 +208,7 @@ MIT
 - **Collect experience by just talking**: a veteran speaks, and the app organizes it into steps and cautions per stage, in the veteran's own words (Claude adds nothing that was not said).
 - **A clear path to becoming a full member**: roles are split into "license required (to be confirmed)" and "no license needed — you can join today". Recruitment cards show the path from day one to working alone. Licensing itself cannot be shortened, so the app shortens the time spent not knowing where to start or waiting idle.
 - **Teaching record**: days when a veteran and a newcomer worked together are recorded and confirmed by both the veteran and the team, then printed or exported monthly as the basis for a teaching fee paid by the town or processing facility. The app never sets amounts, moves money, or scores teaching.
-- **Built for elderly hunters**: press one big button and talk (no login), large text, read-aloud, one follow-up question at a time, dialect kept as spoken.
+- **Built for elderly hunters**: press one big button and talk (no login), large text, read-aloud, one follow-up question at a time, dialect kept as spoken. Works without signal in the hills: the screens are kept on the device by a service worker and all records live on the device.
 - **Town view**: per-district counts only (single-person roles, stages with recorded experience, raised hands, confirmed teaching days, deer/boar caught, patrols, resident reports) and a draft of the numbers to report to the prefecture. No personal names.
 - **Trap map**: traps shown as colored dots (caught / not checked for a while / empty / patrolled today) on Leaflet with GSI tiles. Tapping a caught trap shows the assignee and the partner to go with (decided by the team). The patroller just talks and the dot changes. Sensor alerts are simulated; no hardware is built.
 - **Less paperwork for towns**: patrols, catches and dispatches become one line each (date/time, trap, district, species, count) by voice plus a photo; a gap check lists what is missing; a month-end draft list with town-specific columns is printed or exported. Only records the team confirmed and chose to send go to the town. The app never judges subsidy eligibility or amounts, and never identifies species from photos.

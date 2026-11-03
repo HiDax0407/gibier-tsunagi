@@ -870,6 +870,24 @@ document.addEventListener('input', (e) => {
 window.addEventListener('hashchange', route);
 if (store.get('bigText', false)) document.body.classList.add('big');
 
+// 電波のない所（山の中）でも開けるように、画面のファイルを端末に残す。記録はもともと端末の中
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => { /* 使えない環境 */ });
+function showOffline() {
+  let el = document.getElementById('offline');
+  if (navigator.onLine) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('p');
+    el.id = 'offline';
+    el.className = 'offline';
+    el.setAttribute('role', 'status');
+    el.textContent = '今は電波がありません。話した言葉や記録はこの端末に残り、つながってからも同じように使えます。';
+    document.body.insertBefore(el, document.getElementById('view'));
+  }
+}
+window.addEventListener('online', showOffline);
+window.addEventListener('offline', showOffline);
+showOffline();
+
 load().then(() => {
   route();
   // 撮影用の最初の状態にしたあとの読み込み直しなら、知らせを出す
