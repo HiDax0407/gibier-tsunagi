@@ -4,7 +4,7 @@
 // 町に出すのは、チームが確かめて「出す」を押したものだけ。
 // 写真は添付として残すだけで、写真から獣の種類を判定しない。
 import { ICON } from '../icons.js';
-import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr } from '../ui.js';
+import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag } from '../ui.js';
 import { logs, addLog, editLog, setPhoto, addReport, traps, markSpoke } from '../model.js';
 import { COLUMNS, DEFAULT_COLUMNS, KINDS, SPECIES, findGaps, logsForMonth, draftTable, draftCsv, fmtDateTime } from '../lib/log.js';
 import { parsePatrol } from '../lib/traps.js';
@@ -56,7 +56,8 @@ export function renderLog(month) {
       <section class="gaps">
         <h3>${icon('alert')}抜けチェック <b>${byRec.size}件</b></h3>
         ${gapHtml}
-        <p class="muted" style="margin:8px 0 0">写真なし（捕獲のとき）・日時なし・獣種や頭数なし・チームの確認待ちを出しています。今は決まった照らし合わせです。Claude をつなぐと、話した言葉の中身からも抜けを探します（準備中）。</p>
+        <div id="nuke-ai" data-key="${esc(nukeKey(shown))}"></div>
+        <p class="muted" style="margin:8px 0 0">写真なし（捕獲のとき）・日時なし・獣種や頭数なし・チームの確認待ちは、決まった照らし合わせで出しています。${AI.connected ? '話した言葉と欄の食い違いは Claude が探します（指摘だけ。直すのはチーム）。' : 'Claude をつなぐと、話した言葉と欄の食い違いも探します。'}<span style="margin-left:6px">${aiTag('抜け探し', 'nuke')}</span></p>
       </section>
       <div id="log-form-slot"></div>
       <button class="outline wide" data-log-add>${icon('mic')}記録を足す（話す）</button>
@@ -83,6 +84,28 @@ export function renderLog(month) {
       <p>チームの確認者（署名）＿＿＿＿＿＿＿＿＿＿　　確認日＿＿＿＿＿＿</p>
       <p class="small">交付金・報償金の対象かどうかと金額は、このアプリでは判断していません。人名・地名はすべて架空のデモです。</p>
     </section>`;
+  showNuke(shown);
+}
+
+// Claude の抜け探し（話した言葉と欄の食い違い）。返事は月の記録の組ごとに一度だけ頼む
+const nukeCache = new Map();
+const nukeKey = (list) => list.map((r) => [r.id, r.kind, r.trapNo, r.species, r.count, r.text].join('|')).join('\n');
+function showNuke(list) {
+  const box = document.getElementById('nuke-ai');
+  if (!box || !AI.connected) return;
+  const key = box.dataset.key;
+  const render = (items) => {
+    const el = document.getElementById('nuke-ai');
+    if (!el || el.dataset.key !== key) return;
+    el.innerHTML = items.length
+      ? `<ul class="gap-list nuke">${items.map((it) => { const r = list.find((x) => x.id === it.id); return `<li><a href="#log-${esc(it.id)}" data-jump="${esc(it.id)}">${esc(r?.datetime ? timeLabel(r.datetime) : '日時なし')}・${r?.trapNo ? `${r.trapNo}番・` : ''}${esc(r?.kind || '')}</a><span>食い違い：${esc(it.label)}</span></li>`; }).join('')}</ul>`
+      : '<p class="muted" style="margin:6px 0 0">話した言葉と欄の食い違いはありません。</p>';
+  };
+  if (nukeCache.has(key)) { if (nukeCache.get(key)) render(nukeCache.get(key)); return; }
+  nukeCache.set(key, null);
+  askAi('nuke', { logs: list.map((r) => ({ id: r.id, kind: r.kind, trapNo: r.trapNo, species: r.species, count: r.count, text: r.text })) })
+    .then((res) => { nukeCache.set(key, res.items || []); render(res.items || []); })
+    .catch(() => nukeCache.delete(key));
 }
 
 function recordCard(r) {

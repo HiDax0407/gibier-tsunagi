@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadRaw, buildTeam } from './src/team.mjs';
-import { loadEnv, aiStatus, callClaude, checkSeiri, checkKikikaeshi } from './src/ai.mjs';
+import { loadEnv, aiStatus, callClaude, checkSeiri, checkKikikaeshi, checkNuke } from './src/ai.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 // Claude のキーは .env か環境変数から（リポジトリには入れない）。無ければ未接続のまま動く
@@ -52,16 +52,27 @@ async function aiRoute(task, req, res) {
   let body;
   try { body = await readJson(req); } catch (e) { return sendJson(res, 400, { error: e.message }); }
   try {
+    const steps = (Array.isArray(body.steps) ? body.steps : []).map(String).slice(0, 20);
     if (task === 'seiri') {
       const text = String(body.text || '').slice(0, 4000);
       if (!text.trim()) return sendJson(res, 400, { error: '言葉がありません' });
-      const { data, model } = await callClaude('seiri', { text });
-      const out = checkSeiri(text, data);
+      const { data, model } = await callClaude('seiri', { text, steps });
+      const out = checkSeiri(text, data, steps);
       if (!out) return sendJson(res, 422, { error: '本人の言葉のままではなかったので、見本のままにします' });
       return sendJson(res, 200, { ...out, model });
     }
+    if (task === 'nuke') {
+      // 欄と話した言葉だけを渡す（写真の中身は渡さない・判定しない）
+      const logs = (Array.isArray(body.logs) ? body.logs : []).slice(0, 100).map((r) => ({
+        id: String(r.id || ''), kind: String(r.kind || ''), trapNo: r.trapNo ?? null, species: r.species ?? null, count: r.count ?? null, text: String(r.text || '').slice(0, 300),
+      })).filter((r) => r.id);
+      if (!logs.length) return sendJson(res, 200, { items: [], model: aiStatus().models.nuke });
+      const { data, model } = await callClaude('nuke', { logs });
+      const items = checkNuke(data, logs);
+      if (!items) return sendJson(res, 422, { error: 'お金や交付金の判断が混ざっていたので、使いません' });
+      return sendJson(res, 200, { items, model });
+    }
     const texts = (Array.isArray(body.texts) ? body.texts : []).map((t) => String(t).slice(0, 4000)).filter(Boolean).slice(0, 50);
-    const steps = (Array.isArray(body.steps) ? body.steps : []).map(String).slice(0, 20);
     if (!steps.length) return sendJson(res, 400, { error: '工程がありません' });
     const { data, model } = await callClaude('kikikaeshi', { texts, steps });
     const out = checkKikikaeshi(data, steps);
@@ -78,6 +89,7 @@ export const server = createServer(async (req, res) => {
   if (url.pathname === '/api/ai/status' && req.method === 'GET') return sendJson(res, 200, aiStatus());
   if (url.pathname === '/api/ai/seiri' && req.method === 'POST') return aiRoute('seiri', req, res);
   if (url.pathname === '/api/ai/kikikaeshi' && req.method === 'POST') return aiRoute('kikikaeshi', req, res);
+  if (url.pathname === '/api/ai/nuke' && req.method === 'POST') return aiRoute('nuke', req, res);
 
   if (url.pathname === '/api/team' && req.method === 'GET') {
     try {

@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseEnv, aiStatus, PROMPTS, MODELS, requestBody, parseJson, callClaude, checkSeiri, checkKikikaeshi, API_VERSION } from '../src/ai.mjs';
+import { parseEnv, aiStatus, PROMPTS, MODELS, requestBody, parseJson, callClaude, checkSeiri, checkKikikaeshi, checkNuke, API_VERSION } from '../src/ai.mjs';
 import { server } from '../server.mjs';
 
 const STEPS = ['見回り', 'わなの設置・点検', '止め・搬送', '処理（洗浄・解体）', '冷蔵・保管', '出荷・店とのやりとり', '記録（日付・場所）'];
 
 test('キーが無ければ未接続。あれば接続（キーの中身は返さない）', () => {
-  assert.deepEqual(aiStatus({}), { connected: false, models: { seiri: 'Claude Opus 5.5', kikikaeshi: 'Claude Haiku 5.5' } });
+  assert.deepEqual(aiStatus({}), { connected: false, models: { seiri: 'Claude Opus 5.5', kikikaeshi: 'Claude Haiku 5.5', nuke: 'Claude Haiku 5.5' } });
   const s = aiStatus({ ANTHROPIC_API_KEY: 'dummy' });
   assert.equal(s.connected, true);
   assert.ok(!JSON.stringify(s).includes('dummy'));
@@ -46,11 +46,11 @@ test('Claude の返事から JSON を取り出し、エラーと答えなかっ�
 
 test('整理の検査：文は本人の言葉のまま・順のまま。言い換えた返事は使わない', () => {
   const said = '朝はまず、わなの見回り。一人で行くと危ない。止めたら、とにかく早う冷やして運ぶ。';
-  const good = checkSeiri(said, { tejun: ['止めたら、とにかく早う冷やして運ぶ。', '朝はまず、わなの見回り。'], chui: ['一人で行くと危ない。'] });
-  assert.deepEqual(good, { tejun: ['朝はまず、わなの見回り。', '止めたら、とにかく早う冷やして運ぶ。'], chui: ['一人で行くと危ない。'] });
+  const good = checkSeiri(said, { tejun: ['止めたら、とにかく早う冷やして運ぶ。', '朝はまず、わなの見回り。'], chui: ['一人で行くと危ない。'], koutei: { '一人で行くと危ない。': '止め・搬送', '朝はまず、わなの見回り。': '見回り', '直した文。': '見回り', '止めたら、とにかく早う冷やして運ぶ。': '知らない工程' } }, STEPS);
+  assert.deepEqual(good, { tejun: ['朝はまず、わなの見回り。', '止めたら、とにかく早う冷やして運ぶ。'], chui: ['一人で行くと危ない。'], koutei: { '一人で行くと危ない。': '止め・搬送', '朝はまず、わなの見回り。': '見回り' } }); // 無い文・一覧にない工程は付けない
   assert.equal(checkSeiri(said, { tejun: ['朝はまず、わなの見回りをします。'], chui: [] }), null); // 標準語に直した
   assert.equal(checkSeiri(said, { tejun: [], chui: ['必ず二人で行くこと。'] }), null); // 言っていないことを足した
-  assert.deepEqual(checkSeiri(said, 'json ではない'), { tejun: ['朝はまず、わなの見回り。', '一人で行くと危ない。', '止めたら、とにかく早う冷やして運ぶ。'], chui: [] }); // 形が違っても文は落とさない
+  assert.deepEqual(checkSeiri(said, 'json ではない'), { tejun: ['朝はまず、わなの見回り。', '一人で行くと危ない。', '止めたら、とにかく早う冷やして運ぶ。'], chui: [], koutei: {} }); // 形が違っても文は落とさない
 });
 
 test('聞き返しの検査：1つだけ・工程と型は一覧の中・短く・？で終わる', () => {
@@ -63,6 +63,15 @@ test('聞き返しの検査：1つだけ・工程と型は一覧の中・短く�
   assert.equal(checkKikikaeshi({ step: '見回り', kata: '失敗談', text: '一時間以内に冷やすのが正しいです。' }, STEPS), null); // 答えている（？で終わらない）
 });
 
+test('抜け探しの検査：ある記録の id だけ・短い指摘だけ。お金や交付金の判断が混ざれば使わない', () => {
+  const logs = [{ id: 'a5', text: '7番にシカが二頭かかっとった。', count: 1 }, { id: 'a6', text: '4番の知らせで向かった。' }];
+  assert.deepEqual(checkNuke({ items: [{ id: 'a5', label: '言葉は二頭、頭数は1' }, { id: 'zz', label: 'ない記録' }, { id: 'a6', label: '' }] }, logs), [{ id: 'a5', label: '言葉は二頭、頭数は1' }]);
+  assert.equal(checkNuke({ items: [{ id: 'a5', label: '報償金の対象になる' }] }, logs), null);
+  assert.deepEqual(checkNuke('json ではない', logs), []);
+  assert.ok(PROMPTS.nuke.system.includes('金額を書かない'));
+  assert.ok(PROMPTS.nuke.system.includes('直す案を書かない'));
+});
+
 test('サーバー：キーが無いときは未接続と返し、Claude には頼まない', async () => {
   delete process.env.ANTHROPIC_API_KEY;
   await new Promise((r) => server.listen(0, r));
@@ -72,6 +81,8 @@ test('サーバー：キーが無いときは未接続と返し、Claude には�
     assert.equal(s.connected, false);
     const r = await fetch(`${base}/api/ai/seiri`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '朝は見回り。' }) });
     assert.equal(r.status, 503);
+    const r2 = await fetch(`${base}/api/ai/nuke`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ logs: [] }) });
+    assert.equal(r2.status, 503);
   } finally {
     await new Promise((r) => server.close(r));
   }

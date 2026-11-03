@@ -31,15 +31,18 @@ export function stepCoverage(texts, steps) {
 
 export const missingSteps = (texts, steps) => stepCoverage(texts, steps).filter((x) => !x.heard).map((x) => x.step);
 
-// その工程の言葉が出てくる文だけを、話に出てきた順に集め、手順と注意に分ける（文は本人の言葉のまま・言い換えない）
-export function stepSentences(texts, step) {
+// その工程の文だけを、話に出てきた順に集め、手順と注意に分ける（文は本人の言葉のまま・言い換えない）。
+// talks は文字列か { text, ai }。ai（Claude の整理：tejun/chui/koutei）があればその割り当てを使い、無ければ言葉の照らし合わせ
+export function stepSentences(talks, step) {
   const words = STEP_WORDS[step] || [step];
   const tejun = [];
   const chui = [];
-  for (const text of texts) {
-    const sp = splitTejun(text);
-    for (const s of sp.tejun) if (words.some((w) => s.includes(w))) tejun.push(s);
-    for (const s of sp.chui) if (words.some((w) => s.includes(w))) chui.push(s);
+  for (const t of talks) {
+    const { text, ai } = typeof t === 'string' ? { text: t } : t;
+    const sp = ai?.koutei ? { tejun: ai.tejun, chui: ai.chui } : splitTejun(text);
+    const belongs = ai?.koutei ? (s) => ai.koutei[s] === step : (s) => words.some((w) => s.includes(w));
+    for (const s of sp.tejun) if (belongs(s)) tejun.push(s);
+    for (const s of sp.chui) if (belongs(s)) chui.push(s);
   }
   return { tejun, chui };
 }

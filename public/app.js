@@ -126,20 +126,21 @@ let openStep = null;
 function stepPanelHtml() {
   if (!openStep) return '';
   const talks = teamTalks(savedTalks());
-  const sp = stepSentences(talks.map((t) => t.text), openStep);
+  const sp = stepSentences(talks.map((t) => ({ text: t.text, ai: aiCache.split.get(t.id) || null })), openStep);
   if (!sp.tejun.length && !sp.chui.length) return '';
   const who = [...new Set(talks.map((t) => t.who))].join('・');
   const li = (list) => list.map((t) => `<li>${esc(t)}</li>`).join('') || '<li class="muted">（なし）</li>';
   return `<div class="step-panel">
     <div class="sp-head"><b>「${esc(openStep)}」で残った言葉</b><span class="muted">${esc(who)}さん・本人の言葉のまま</span><button class="outline sm" data-step-close>閉じる</button></div>
     <div class="split"><div><h4>手順</h4><ul>${li(sp.tejun)}</ul></div><div class="c"><h4>注意</h4><ul>${li(sp.chui)}</ul></div></div>
-    <div class="ask-foot"><button class="say" data-say-step>${icon('speaker')}声で聞く</button><a href="#/talk">この工程を深く聞く →</a></div>
-    <p class="muted" style="margin:6px 0 0">言葉の照らし合わせで集めた文です。やり方として正しいかは、このアプリは答えません。新しく入る人は、先輩と二人で確かめてください。</p>
+    <div class="ask-foot"><button class="say" data-say-step>${icon('speaker')}声で聞く</button><a href="#/talk">この工程を深く聞く →</a>${aiTag('整理', 'seiri')}</div>
+    <p class="muted" style="margin:6px 0 0">${AI.connected ? 'Claude が工程ごとに割り当てた文です（本人の言葉のまま）。' : '言葉の照らし合わせで集めた文です。'}やり方として正しいかは、このアプリは答えません。新しく入る人は、先輩と二人で確かめてください。</p>
   </div>`;
 }
 function showStepPanel() {
   const el = document.getElementById('step-panel');
   if (!el) return;
+  ensureSplits(teamTalks(savedTalks()), () => { if (document.getElementById('step-panel')) document.getElementById('step-panel').innerHTML = stepPanelHtml(); });
   el.innerHTML = stepPanelHtml();
   document.querySelectorAll('button.no.on').forEach((b) => b.setAttribute('aria-expanded', String(b.dataset.step === openStep)));
   if (openStep) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -346,17 +347,25 @@ const questionKey = () => {
   const texts = talkTexts();
   return `${texts.length}-${texts.join('\n').length}`;
 };
-function enrichTalk() {
+// 残した話の整理（手順・注意・工程）を Claude に頼んで cache に入れる。届いたら onDone
+function ensureSplits(talks, onDone) {
   if (!AI.connected) return;
-  for (const x of savedTalks()) {
-    if (aiCache.split.has(x.id) || aiCache.split.get(x.id) === null) continue;
+  const steps = data.rows.map((r) => r.role);
+  for (const x of talks) {
+    if (aiCache.split.has(x.id)) continue;
     aiCache.split.set(x.id, null); // 頼んだ印（二重に頼まない）
-    askAi('seiri', { text: x.text }).then((sp) => {
-      aiCache.split.set(x.id, { tejun: sp.tejun, chui: sp.chui });
-      const el = document.querySelector(`[data-split="${CSS.escape(x.id)}"]`);
-      if (el) el.innerHTML = splitHtml(sp);
+    askAi('seiri', { text: x.text, steps }).then((sp) => {
+      aiCache.split.set(x.id, { tejun: sp.tejun, chui: sp.chui, koutei: sp.koutei || {} });
+      onDone?.(x.id, sp);
     }).catch(() => aiCache.split.delete(x.id));
   }
+}
+function enrichTalk() {
+  if (!AI.connected) return;
+  ensureSplits(savedTalks(), (id, sp) => {
+    const el = document.querySelector(`[data-split="${CSS.escape(id)}"]`);
+    if (el) el.innerHTML = splitHtml(sp);
+  });
   const key = questionKey();
   if (aiCache.q.has(key)) return;
   aiCache.q.set(key, null);
@@ -709,7 +718,7 @@ document.addEventListener('click', (e) => {
   if (stepBtn) { openStep = openStep === stepBtn.dataset.step ? null : stepBtn.dataset.step; showStepPanel(); return; }
   if (e.target.closest('[data-step-close]')) { openStep = null; showStepPanel(); return; }
   if (e.target.closest('[data-say-step]')) {
-    const sp = stepSentences(teamTalks(savedTalks()).map((t) => t.text), openStep || '');
+    const sp = stepSentences(teamTalks(savedTalks()).map((t) => ({ text: t.text, ai: aiCache.split.get(t.id) || null })), openStep || '');
     speak([...sp.tejun, ...sp.chui].join(''), e.target.closest('[data-say-step]'));
     return;
   }

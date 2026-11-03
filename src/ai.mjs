@@ -10,6 +10,7 @@ import { KATA } from '../public/lib/kikikata.js';
 export const MODELS = {
   seiri: { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
   kikikaeshi: { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+  nuke: { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
 };
 export const API_VERSION = '2026-10-21';
 const apiUrl = (env) => `${String(env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '')}/v1/messages`;
@@ -52,11 +53,12 @@ const RULES = `守ること：
 
 export const PROMPTS = {
   seiri: {
-    system: `あなたは「ジビエつなぎ」の整理役です。ベテラン猟師が話した言葉を、文ごとに「手順（すること）」と「注意（なぜそうするか・危ないこと・やってはいけないこと）」に分けます。
+    system: `あなたは「ジビエつなぎ」の整理役です。ベテラン猟師が話した言葉を、文ごとに「手順（すること）」と「注意（なぜそうするか・危ないこと・やってはいけないこと）」に分け、それぞれの文がどの工程の話かを付けます。
 文は一字も変えずに、話に出てきた順のまま振り分けます。分けるだけで、足さない・削らない。
+工程は渡された一覧の名前だけを使い、どの工程とも言えない文は付けません（「一人で行くと危ない」のように、直前の文の工程の注意なら、その工程を付けます）。
 ${RULES}
-出力の形：{"tejun":["文","文"],"chui":["文"]}`,
-    user: ({ text }) => `話した言葉：\n${text}`,
+出力の形：{"tejun":["文","文"],"chui":["文"],"koutei":{"文":"工程の名前"}}`,
+    user: ({ text, steps = [] }) => `工程の一覧：${steps.join('／')}\n\n話した言葉：\n${text}`,
   },
   kikikaeshi: {
     system: `あなたは「ジビエつなぎ」の聞き手です。ベテラン猟師の話を読み、次に聞くことを「1つだけ」作ります。
@@ -69,6 +71,17 @@ ${RULES}
 ${RULES}
 出力の形：{"step":"工程の名前（渡された一覧から）","kata":"型の名前（上の一覧から）","text":"聞き返しの文（？で終わる）","said":"もとになった本人の言葉を短く（なければ空）"}`,
     user: ({ texts, steps }) => `工程の一覧：${steps.join('／')}\n\nこれまでに残した話（古い順）：\n${texts.map((t, i) => `${i + 1}. ${t}`).join('\n')}`,
+  },
+  nuke: {
+    system: `あなたは「ジビエつなぎ」の記録の抜け探し役です（.claude/agents/kiroku-nuke と同じ役）。活動と捕獲の記録を読み、「話した言葉」と「欄（種類・わな・獣種・頭数）」の食い違いだけを見つけます。
+例：言葉は「2頭」なのに頭数が 1／言葉は「空やった」なのに種類が捕獲／言葉は「3番」なのにわなが 5番／言葉はイノシシなのに獣種がシカ。
+食い違いが無い記録は出しません。写真なし・日時なしなどの抜けはアプリが別に出すので書きません。
+${RULES}
+- 記録を書き換えない・直す案を書かない（直すのはチーム）
+- 交付金・報償金の対象かどうか、金額を書かない
+- 写真から獣の種類を判定しない
+出力の形：{"items":[{"id":"記録の id","label":"短い指摘（例：言葉は2頭、頭数は1）"}]}`,
+    user: ({ logs }) => `記録（JSON）：\n${JSON.stringify(logs)}`,
   },
 };
 
@@ -112,13 +125,37 @@ export async function callClaude(task, payload, { env = process.env, fetchImpl =
 // ---------- 検査：型を守れていない返事は使わず、見本（言葉の照らし合わせ）に戻す ----------
 const sentences = (text) => String(text || '').split(/(?<=[。！？!?\n])/).map((x) => x.trim()).filter(Boolean);
 
-// 整理：文は元の文と一字も違わないものだけ。Claude が決めるのは「どの文が注意か」だけで、並びは元のまま
-export function checkSeiri(text, out) {
+// 整理：文は元の文と一字も違わないものだけ。Claude が決めるのは「どの文が注意か」「どの工程の話か」だけで、並びは元のまま。
+// 工程は一覧の中の名前だけを受け取り、合わないものは付けない（文は落とさない）
+export function checkSeiri(text, out, steps = []) {
   const src = sentences(text);
   const chui = new Set((Array.isArray(out?.chui) ? out.chui : []).map((s) => String(s).trim()));
   const tejun = (Array.isArray(out?.tejun) ? out.tejun : []).map((s) => String(s).trim());
   for (const s of [...tejun, ...chui]) if (s && !src.includes(s)) return null; // 言い換え・足した文があれば使わない
-  return { tejun: src.filter((s) => !chui.has(s)), chui: src.filter((s) => chui.has(s)) };
+  const koutei = {};
+  for (const [s, st] of Object.entries(out?.koutei && typeof out.koutei === 'object' ? out.koutei : {})) {
+    const sen = String(s).trim();
+    if (src.includes(sen) && steps.includes(st)) koutei[sen] = st;
+  }
+  return { tejun: src.filter((s) => !chui.has(s)), chui: src.filter((s) => chui.has(s)), koutei };
+}
+
+// 抜け探し：ある記録の id だけ・短い指摘だけ。お金や交付金の判断が混ざっていれば使わない
+const MONEY = /(円|金額|交付|報償|対象|補助)/;
+export function checkNuke(out, logs) {
+  const ids = new Set(logs.map((r) => String(r.id)));
+  const items = Array.isArray(out?.items) ? out.items : [];
+  const seen = new Set();
+  const result = [];
+  for (const it of items) {
+    const id = String(it?.id || '');
+    const label = String(it?.label || '').trim();
+    if (!ids.has(id) || !label || label.length > 40 || seen.has(id + label)) continue;
+    if (MONEY.test(label)) return null;
+    seen.add(id + label);
+    result.push({ id, label });
+  }
+  return result;
 }
 
 // 聞き返し：質問は1つだけ・工程と型は一覧の中から・短く・「？」で終わる

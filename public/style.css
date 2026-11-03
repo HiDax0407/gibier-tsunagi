@@ -573,3 +573,4 @@ button.no.on[aria-expanded="true"] { outline: 3px solid var(--accent); outline-o
 .talk-progress small { font-size: 14px; }
 details > summary, .wedit summary, .tview summary, .cols summary { min-height: 44px; padding: 10px 0; box-sizing: border-box; }
 button.link { padding: 10px 8px; }
+.gap-list.nuke { border-top: 1px dashed rgba(143,84,0,.4); margin-top: 6px; }
