@@ -9,6 +9,7 @@ import { splitHealth } from './lib/watch.js';
 import { stepCoverage, nextQuestion, splitTejun, stepSentences } from './lib/kikikata.js';
 import { toCsvText } from './lib/csv.js';
 import { logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
+import { SCOPES, scopeOf, scopeLabel, teamTalks, talksCsv } from './lib/talks.js';
 import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
 import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit } from './screens/log.js';
 import { renderWatch, watchClick } from './screens/watch.js';
@@ -58,7 +59,7 @@ function renderTeam() {
   const total = rowsNow.length;
   const left = total - ok;
   const areaName = strip(data.area.name);
-  const heard = new Map(stepCoverage(talkTexts(), rowsNow.map((r) => r.role)).map((c) => [c.step, c.heard]));
+  const heard = new Map(stepCoverage(teamTexts(), rowsNow.map((r) => r.role)).map((c) => [c.step, c.heard]));
   const nHeard = [...heard.values()].filter(Boolean).length;
   const pairs = todayPairs();
   const rows = rowsNow.map((r, i) => {
@@ -124,7 +125,7 @@ function renderTeam() {
 let openStep = null;
 function stepPanelHtml() {
   if (!openStep) return '';
-  const talks = savedTalks();
+  const talks = teamTalks(savedTalks());
   const sp = stepSentences(talks.map((t) => t.text), openStep);
   if (!sp.tejun.length && !sp.chui.length) return '';
   const who = [...new Set(talks.map((t) => t.who))].join('・');
@@ -250,15 +251,21 @@ let healthDropped = 0;   // 残さなかった体のぐあいの話の文の数�
 
 function savedTalks() {
   const t = data.veteranTalk;
-  // 新しい話から上に
+  const scopes = store.get('talkScope', {});
+  const hidden = store.get('talkHidden', {});
+  // 新しい話から上に。使ってよい範囲（本人が決める）と、本人が消した話を重ねる
   return [
     ...store.get('talks', []).map((x) => ({ ...x, local: true })).reverse(),
     ...(scene()?.hideTalk ? [] : [{ id: 'prepared', who: strip(t.speaker).split('（')[0], date: t.date, text: t.text }]),
-  ];
+  ].filter((x) => !hidden[x.id]).map((x) => ({ ...x, scope: scopes[x.id] || x.scope || 'team' }));
 }
 
+// 本人の画面（話す）では全部。チームの表・町の数・工程ごとの言葉は、本人が「チームの中で使ってよい」とした話だけ
 function talkTexts() {
   return savedTalks().map((x) => x.text);
+}
+function teamTexts() {
+  return teamTalks(savedTalks()).map((x) => x.text);
 }
 
 function renderTalk() {
@@ -275,6 +282,10 @@ function renderTalk() {
       <p class="said">${esc(x.text)}</p>
       <div class="split" data-split="${esc(x.id)}">${splitHtml(sp)}</div>
       <div class="ask-foot"><button class="say" data-say="${esc(x.id)}">${icon('speaker')}声で聞く</button>${aiTag('整理', 'seiri')}</div>
+      <div class="scope-row">
+        <label>使ってよい範囲（本人が決める）<select data-scope="${esc(x.id)}">${SCOPES.map((s) => `<option value="${s.id}"${scopeOf(x) === s.id ? ' selected' : ''}>${esc(s.label)}</option>`).join('')}</select></label>
+        <button class="link" data-talk-del="${esc(x.id)}">この話を消す</button>
+      </div>
     </div>`;
   }).join('');
   const qKey = questionKey();
@@ -305,7 +316,9 @@ function renderTalk() {
     ${healthDropped ? `<div class="hnote">体のぐあいの話（${healthDropped}文）は残しませんでした。見守りは、話した日だけを見ます。</div>` : ''}
     <p class="muted">ログインはありません。チームが渡すリンクを開くだけです。若い人が横でスマホを持って聞き取ってもかまいません。方言も言い直しも、そのまま残します。体のぐあいの話は残しません。</p>
     <h2 id="talks">残した話</h2>
+    <p class="muted" style="margin-top:-6px">残した話は、話した本人のものです。使ってよい範囲は本人が決め、アプリや AI は勝手に広げません・言葉を足しません。</p>
     ${talks || '<p class="muted">まだありません。</p>'}
+    ${savedTalks().length ? `<button class="outline wide" data-talks-csv>${icon('doc')}話を書き出す（CSV・誰がいつ話したかを付ける）</button>` : ''}
     <section class="ask" data-q="${esc(qKey)}">
       <h3>次に聞くこと（1つだけ）</h3>
       <p class="said" id="q-text">${esc(qShown.text)}</p>
@@ -530,7 +543,7 @@ function renderTown(arg) {
   const monthText = month === 'all' ? 'すべての月' : monthLabel(month);
   const rowsNow = teamRows();
   // チームの表と同じ数え方（話す画面で残した話に、その工程の言葉が出てきたか）
-  const heardSteps = stepCoverage(talkTexts(), rowsNow.map((r) => r.role)).filter((c) => c.heard).map((c) => c.step);
+  const heardSteps = stepCoverage(teamTexts(), rowsNow.map((r) => r.role)).filter((c) => c.heard).map((c) => c.step);
   const live = {
     ...countDistrict({
       rows: rowsNow,
@@ -605,7 +618,7 @@ function townCsv(month) {
 }
 
 // ---------- 切り替え ----------
-const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene'];
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene'];
 function clearLocal() {
   for (const k of LOCAL_KEYS) {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
@@ -668,6 +681,16 @@ document.addEventListener('click', (e) => {
   }
   const tcsv = e.target.closest('[data-town-csv]');
   if (tcsv) { townCsv(townMonth(tcsv.dataset.townCsv)); return; }
+  if (e.target.closest('[data-talks-csv]')) { saveCsv(`残した話_${todayStr()}.csv`, talksCsv(savedTalks())); return; }
+  const del = e.target.closest('[data-talk-del]');
+  if (del) {
+    if (!confirm('この話を消します。消すのは本人（話した人）だけです。よろしいですか？')) return;
+    const hidden = store.get('talkHidden', {});
+    hidden[del.dataset.talkDel] = true;
+    store.set('talkHidden', hidden);
+    renderTalk();
+    return;
+  }
   if (e.target.closest('[data-reset]')) {
     if (!confirm('この端末で足した記録・押した「はい」・設定を消して、デモを最初の状態に戻します。よろしいですか？')) return;
     clearLocal();
@@ -686,7 +709,7 @@ document.addEventListener('click', (e) => {
   if (stepBtn) { openStep = openStep === stepBtn.dataset.step ? null : stepBtn.dataset.step; showStepPanel(); return; }
   if (e.target.closest('[data-step-close]')) { openStep = null; showStepPanel(); return; }
   if (e.target.closest('[data-say-step]')) {
-    const sp = stepSentences(savedTalks().map((t) => t.text), openStep || '');
+    const sp = stepSentences(teamTalks(savedTalks()).map((t) => t.text), openStep || '');
     speak([...sp.tejun, ...sp.chui].join(''), e.target.closest('[data-say-step]'));
     return;
   }
@@ -812,7 +835,18 @@ document.addEventListener('submit', (e) => {
   document.querySelector('.hands')?.scrollIntoView({ block: 'start' });
 });
 
-document.addEventListener('change', (e) => { if (mapChange(e)) return; logChange(e); });
+document.addEventListener('change', (e) => {
+  const sc = e.target.closest('[data-scope]');
+  if (sc) {
+    const scopes = store.get('talkScope', {});
+    scopes[sc.dataset.scope] = sc.value;
+    store.set('talkScope', scopes);
+    toast(`この話の範囲を「${scopeLabel(sc.value, true)}」にしました。`);
+    return;
+  }
+  if (mapChange(e)) return;
+  logChange(e);
+});
 // 文字で入れたときも、拾えたものを見せ直す
 document.addEventListener('input', (e) => {
   if (e.target.id === 'patrol-text') showParse();
