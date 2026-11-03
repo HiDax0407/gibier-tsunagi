@@ -21,7 +21,8 @@ const trapHtml = (t, cls = '') => `<span class="trap s-${stateOf(t)} ${cls}">${t
 export function leaveMap() {
   clearInterval(autoTimer);
   autoTimer = null;
-  if (map) { map.remove(); map = null; }
+  // 地図が動いている最中（寄る動作など）に離れても落ちないよう、止めてから消す
+  if (map) { try { map.stop(); map.remove(); } catch { /* もう消えている */ } map = null; }
   markers = {};
   routeLine = null;
 }
@@ -121,8 +122,10 @@ function focusTrap(t) {
   if (!map || !window.L || !t) return;
   const d = ctx.data.traps;
   const pts = d.facility ? routeFor(t, d.road, d.facility) : [[t.lat, t.lng]];
-  map.invalidateSize();
-  map.fitBounds(window.L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
+  try {
+    map.invalidateSize();
+    map.fitBounds(window.L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
+  } catch { /* 画面を離れた直後 */ }
 }
 
 // 色と一覧と下の欄を描き直す（地図は作り直さない）
