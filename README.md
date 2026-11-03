@@ -157,7 +157,7 @@ cp .env.example .env  # （任意）ANTHROPIC_API_KEY を入れると、話す�
 npm start             # http://localhost:8791
 ```
 
-スマホの幅で見ることを前提にしていますが、PC でも崩れません（町の担当の方向け）。文字の色は白地で 4.5:1 以上、押す所は 44px 以上を目安にし、キーボードでも操作できます（Tab で枠が出る）。テストは `npm test`。この端末で足した記録は、チームの画面のいちばん下の「デモを最初の状態に戻す」で消せます。
+台本の順に画面を自動で押して確かめる通し試しは `npm run toshi`（`npm start` を動かしたまま。ブラウザの自動操作に [Playwright](https://playwright.dev/) が要ります）。スマホの幅で見ることを前提にしていますが、PC でも崩れません（町の担当の方向け）。文字の色は白地で 4.5:1 以上、押す所は 44px 以上を目安にし、キーボードでも操作できます（Tab で枠が出る）。テストは `npm test`。この端末で足した記録は、チームの画面のいちばん下の「デモを最初の状態に戻す」で消せます。
 
 デモ動画の流れ（ある朝、わなに入った）は [docs/demo-script.md](docs/demo-script.md)。`http://localhost:8791/#/asa` を開くと、その最初の状態（チームが高木さんを決める前・わなの知らせなし・今朝の記録なし・岩田さんの話なし）になります。
 
@@ -184,7 +184,7 @@ npm start             # http://localhost:8791
   - 抜け探し＝活動と捕獲の記録で、話した言葉と欄（種類・わな・獣種・頭数）の食い違いを指摘する（Claude Haiku 5.5。サブエージェント `kiroku-nuke` と同じ役。指摘だけで、直すのはチーム）
   - キーは環境変数 `ANTHROPIC_API_KEY` か `.env` で受け取り、無ければ言葉の照らし合わせの見本で動く。返事は検査を通してから使う：文が本人の言葉と一字でも違えば使わない・一覧にない工程は付けない・聞き返しが2つあれば使わない・お金や交付金の判断が混ざれば使わない（テストで固定）。書き直し役（募集カードのやさしい言葉）は予定
 - 聞き方の型（Claude Skill）：[`.claude/skills/jukuren-kikikata`](.claude/skills/jukuren-kikikata/SKILL.md)。失敗談・良し悪しの見分け方・感覚と量（どのくらい）・昔と今の違い・新人がよくやる間違い・話の食い違いの確認。聞き返しは1回に1つ。画面の「次に聞くこと」はこの型の写し（`public/lib/kikikata.js`）で、Claude 接続前は言葉の照らし合わせで出している
-- サブエージェント：[`kikinuke-sagashi`](.claude/agents/kikinuke-sagashi.md)（まだ聞けていない工程と型を一覧に）／[`kiroku-nuke`](.claude/agents/kiroku-nuke.md)（町へ出す前の記録の抜けと、話した言葉と欄の食い違いを指摘。直すのはチーム）
+- サブエージェント：[`kikinuke-sagashi`](.claude/agents/kikinuke-sagashi.md)（まだ聞けていない工程と型を一覧に）／[`kiroku-nuke`](.claude/agents/kiroku-nuke.md)（町へ出す前の記録の抜けと、話した言葉と欄の食い違いを指摘。直すのはチーム）／[`toshi-tameshi`](.claude/agents/toshi-tameshi.md)（動画の台本の順に画面を押して、詰まる所と前後の数を報告。`scripts/toshi.mjs`）
 - 開発：Claude Code を中心に開発。この作品用のフック（`.claude/hooks/guard-commit.sh`：コミット前の秘密情報検査）・スキル・サブエージェントをリポジトリ内に期間中に作っています（作者個人の Claude 設定は入れていない）
 - 秘密情報の守りは三段：Claude Code のフック → git のフック（`.githooks/`）→ GitHub（Actions での再検査と push protection）
 

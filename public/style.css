@@ -574,3 +574,11 @@ button.no.on[aria-expanded="true"] { outline: 3px solid var(--accent); outline-o
 details > summary, .wedit summary, .tview summary, .cols summary { min-height: 44px; padding: 10px 0; box-sizing: border-box; }
 button.link { padding: 10px 8px; }
 .gap-list.nuke { border-top: 1px dashed rgba(143,84,0,.4); margin-top: 6px; }
+
+/* 町の画面：チームが確かめ中の件数（数に入っていないことを示す） */
+.pending-note { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--sub); margin: -2px 0 10px; }
+.pending-note b { color: var(--ink); }
+/* 募集カード：チームで決まった人への次の一歩 */
+.next-step { display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; font-size: 14px; }
+.next-step b { font-size: 15px; }
+.next-step a { color: var(--accent); font-weight: 700; min-height: 32px; display: flex; align-items: center; }

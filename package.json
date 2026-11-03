@@ -4,12 +4,15 @@
   "private": true,
   "description": "ベテラン猟師の経験を話すだけで集め、新しく入る人の一人前までの道のりを迷わず短くする（Built with Claude: Japan 2026）",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test",
     "check-secrets": "node scripts/check-secrets.mjs --worktree",
-    "setup-hooks": "git config core.hooksPath .githooks"
+    "setup-hooks": "git config core.hooksPath .githooks",
+    "toshi": "node scripts/toshi.mjs"
   },
   "license": "MIT"
 }

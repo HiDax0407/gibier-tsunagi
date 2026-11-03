@@ -4,7 +4,7 @@ import { ICON, ROLE_ICON } from './icons.js';
 import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi } from './ui.js';
 import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
-import { districtTotals } from './lib/log.js';
+import { districtTotals, fmtDateTime } from './lib/log.js';
 import { splitHealth } from './lib/watch.js';
 import { stepCoverage, nextQuestion, splitTejun, stepSentences } from './lib/kikikata.js';
 import { toCsvText } from './lib/csv.js';
@@ -209,10 +209,12 @@ function renderCard(id) {
     ? hands.map((h) => {
         const key = `${c.id}:${h.name}`;
         const isDecided = !!decided[key];
+        const next = isDecided ? `<div class="next-step"><b>次の一歩</b><a href="#/team">先輩の言葉を工程ごとに読む（チームの表の緑の番号）</a><a href="#/teach">先輩と二人でやった日は「教えた記録」に残る</a><span class="muted">やり方や資格の決まりは、先輩と県の窓口で確かめる（要確認）</span></div>` : '';
         return `<div class="hand">
           <span class="name">${esc(strip(h.name))}さん</span>${isDecided ? '<span class="decided">チームで決定</span>' : ''}${h.since ? `<span class="muted">（${esc(dayLabel(h.since))}に手を挙げた）</span>` : ''}${h.local ? '<span class="muted">（この端末で追加）</span>' : ''}
           <div class="cond">本人が書いた条件：${esc(h.conditions) || '（なし）'}</div>
           <button class="outline sm" data-decide="${esc(key)}">${isDecided ? '決定を取り消す' : 'チームで話して、お願いする'}</button>
+          ${next}
         </div>`;
       }).join('')
     : '<p class="muted">まだ手は挙がっていません。</p>';
@@ -564,6 +566,8 @@ function renderTown(arg) {
   };
   const rows = townRows(data.town.districts, live);
   const totals = townTotals(rows);
+  // チームがまだ確かめていない・出していない記録（数には入っていない）
+  const pending = logs().filter((r) => r.district === data.homeDistrict && !(r.teamOk && r.sent) && (month === 'all' || !r.datetime || monthOf(fmtDateTime(r.datetime)) === month)).length;
   const num = (n, unit, label, sub = '') => `<div class="tn"><b>${n}<small>${unit}</small></b><span>${label}</span>${sub ? `<em>${sub}</em>` : ''}</div>`;
   const cards = rows.map((d) => `
     <article class="dist">
@@ -606,6 +610,7 @@ function renderTown(arg) {
     <a class="goal-link" href="#/impact" style="margin-top:20px"><span class="gl-k">目的：害獣の被害を減らす</span><span class="gl-v"><span>被害の知らせ・捕獲・見回りの移り変わりをグラフで見る</span></span><span class="gl-go">見える化 ${ICON.next}</span></a>
     <h2>県へ上げる数の下書き（${esc(monthText)}）</h2>
     <p class="muted" style="margin-top:-6px">地区ごとの数と合計です。個人名は出しません。交付金・報償金の対象かどうかと金額は判断しません。数に入るのは、チームが確かめて「町へ出す」を押した記録だけです。</p>
+    ${pending ? `<p class="pending-note">${icon('clock')}北沢地区で、チームが確かめ中の記録が <b>${pending}件</b> あります（まだ数に入っていません）。</p>` : ''}
     <div class="tscroll">${sumTable}</div>
     <div class="row2">
       <button class="outline" data-print>印刷する</button>
