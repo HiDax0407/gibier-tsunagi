@@ -581,4 +581,4 @@ button.link { padding: 10px 8px; }
 /* 募集カード：チームで決まった人への次の一歩 */
 .next-step { display: grid; gap: 6px; margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 10px 10px 0; font-size: 14px; }
 .next-step b { font-size: 15px; }
-.next-step a { color: var(--accent); font-weight: 700; min-height: 32px; display: flex; align-items: center; }
+.next-step a { color: var(--accent); font-weight: 700; min-height: 44px; display: flex; align-items: center; }
