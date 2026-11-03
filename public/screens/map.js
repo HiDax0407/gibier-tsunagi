@@ -81,7 +81,7 @@ function initMap(L) {
   const pts = traps().map((t) => [t.lat, t.lng]);
   if (fac) pts.push([fac.lat, fac.lng]);
   map.invalidateSize();
-  map.fitBounds(L.latLngBounds(pts), { padding: [28, 28] });
+  map.fitBounds(L.latLngBounds(pts), { padding: [28, 28], animate: false });
   // チームが登録した運び出しの道（細い線）と処理場
   if (d.road.length) L.polyline(d.road, { color: '#8c8c8c', weight: 3, dashArray: '2 6', interactive: false }).addTo(map);
   if (fac) {
@@ -124,7 +124,7 @@ function focusTrap(t) {
   const pts = d.facility ? routeFor(t, d.road, d.facility) : [[t.lat, t.lng]];
   try {
     map.invalidateSize();
-    map.fitBounds(window.L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
+    map.fitBounds(window.L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16, animate: false });
   } catch { /* 画面を離れた直後 */ }
 }
 
