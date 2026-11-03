@@ -185,31 +185,38 @@ export function readPhoto(file, max = 640) {
   });
 }
 
-// ---------- 地図の部品（Leaflet・オープンソース）を、地図の画面を開いたときだけ読み込む ----------
+// ---------- 地図の部品（Leaflet 1.9.4・オープンソース・BSD-2-Clause）を、地図の画面を開いたときだけ読み込む ----------
+// 同梱したもの（public/vendor/leaflet・LICENSE つき）を先に使い、読めなければ unpkg から。どちらも改ざん防止の値で確かめる
 const LEAFLET = {
-  css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   cssHash: 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=',
-  js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   jsHash: 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=',
+  sources: [
+    { css: '/vendor/leaflet/leaflet.css', js: '/vendor/leaflet/leaflet.js' },
+    { css: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', js: 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js' },
+  ],
 };
 let leafletLoading = null;
-export function loadLeaflet() {
-  if (window.L) return Promise.resolve(window.L);
-  if (leafletLoading) return leafletLoading;
-  leafletLoading = new Promise((resolve, reject) => {
+function loadLeafletFrom(src) {
+  return new Promise((resolve, reject) => {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
-    css.href = LEAFLET.css;
+    css.href = src.css;
     css.integrity = LEAFLET.cssHash;
     css.crossOrigin = '';
     document.head.appendChild(css);
     const s = document.createElement('script');
-    s.src = LEAFLET.js;
+    s.src = src.js;
     s.integrity = LEAFLET.jsHash;
     s.crossOrigin = '';
     s.onload = () => resolve(window.L);
-    s.onerror = () => { leafletLoading = null; reject(new Error('地図を読み込めませんでした')); };
+    s.onerror = () => { css.remove(); s.remove(); reject(new Error('地図を読み込めませんでした')); };
     document.head.appendChild(s);
   });
+}
+export function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (leafletLoading) return leafletLoading;
+  leafletLoading = LEAFLET.sources.reduce((p, src) => p.catch(() => loadLeafletFrom(src)), Promise.reject())
+    .catch((e) => { leafletLoading = null; throw e; });
   return leafletLoading;
 }

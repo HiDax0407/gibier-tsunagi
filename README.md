@@ -172,7 +172,7 @@ npm start             # http://localhost:8791
 | 期間中に作成 | 画像（`public/img/`・`docs/design/`） | 2026-11-02 のキックオフ後に AI（gpt-image-2）で生成した**架空の場面**。実在の人・場所ではない。`docs/design/` は見た目を合わせるための完成イメージ |
 | 期間中に作成 | 上記以外のすべて（コード・画面・`data/` のほかのファイル〔役割・教えた記録・町・わな・活動の記録・見守り。どれも架空〕・テスト・フック・スキル・サブエージェント・`CLAUDE.md`） | 作業の記録は [DEVLOG.md](DEVLOG.md) とコミット履歴 |
 
-使っているもの：Node.js 標準機能。画面の地図に [Leaflet](https://leafletjs.com/) 1.9.4（オープンソース・BSD-2-Clause。ブラウザで読み込み、改ざん防止の値つき）と、国土地理院の[地理院タイル](https://maps.gsi.go.jp/development/ichiran.html)（陰影起伏図。実在の地名が画面に出ないよう、地名の入らない地図を選んだ）。Claude API は、ハッカソンで配布されたクレジットで、専用のキーと使用上限を設定してからつなぎます（キーはリポジトリに入れず環境変数で扱う）。
+使っているもの：Node.js 標準機能。画面の地図に [Leaflet](https://leafletjs.com/) 1.9.4（オープンソース・BSD-2-Clause。`public/vendor/leaflet` に LICENSE ごと同梱し、読めないときだけ unpkg から。どちらも改ざん防止の値で確かめる）と、国土地理院の[地理院タイル](https://maps.gsi.go.jp/development/ichiran.html)（陰影起伏図。実在の地名が画面に出ないよう、地名の入らない地図を選んだ）。Claude API は、ハッカソンで配布されたクレジットで、専用のキーと使用上限を設定してからつなぎます（キーはリポジトリに入れず環境変数で扱う）。
 
 ## Claude の使い方
 
