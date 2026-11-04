@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseEnv, aiStatus, PROMPTS, MODELS, requestBody, parseJson, callClaude, checkSeiri, checkKikikaeshi, checkNuke, API_VERSION } from '../src/ai.mjs';
+import { parseEnv, aiStatus, PROMPTS, MODELS, requestBody, parseJson, callClaude, checkSeiri, checkKikikaeshi, checkNuke, checkRiyu, API_VERSION } from '../src/ai.mjs';
 import { server } from '../server.mjs';
 
 const STEPS = ['見回り', 'わなの設置・点検', '止め・搬送', '処理（洗浄・解体）', '冷蔵・保管', '出荷・店とのやりとり', '記録（日付・場所）'];
 
 test('キーが無ければ未接続。あれば接続（キーの中身は返さない）', () => {
-  assert.deepEqual(aiStatus({}), { connected: false, models: { seiri: 'Claude Opus 5.5', kikikaeshi: 'Claude Haiku 5.5', nuke: 'Claude Haiku 5.5' } });
+  assert.deepEqual(aiStatus({}), { connected: false, models: { seiri: 'Claude Opus 5.5', kikikaeshi: 'Claude Haiku 5.5', nuke: 'Claude Haiku 5.5', riyu: 'Claude Haiku 5.5' } });
   const s = aiStatus({ ANTHROPIC_API_KEY: 'dummy' });
   assert.equal(s.connected, true);
   assert.ok(!JSON.stringify(s).includes('dummy'));
@@ -70,6 +70,13 @@ test('抜け探しの検査：ある記録の id だけ・短い指摘だけ。�
   assert.deepEqual(checkNuke('json ではない', logs), []);
   assert.ok(PROMPTS.nuke.system.includes('金額を書かない'));
   assert.ok(PROMPTS.nuke.system.includes('直す案を書かない'));
+});
+
+test('戻す理由の文：短く整えるだけ。お金・許可の判断が混ざれば使わない', () => {
+  assert.deepEqual(checkRiyu({ text: '3番の写真が暗く獣種が分かりません。撮り直しをお願いします。' }), { text: '3番の写真が暗く獣種が分かりません。撮り直しをお願いします。' });
+  assert.equal(checkRiyu({ text: 'この記録は報償金の対象外です' }), null);
+  assert.equal(checkRiyu({ text: 'あ'.repeat(61) }), null);
+  assert.ok(PROMPTS.riyu.system.includes('意味を変えない'));
 });
 
 test('サーバー：キーが無いときは未接続と返し、Claude には頼まない', async () => {

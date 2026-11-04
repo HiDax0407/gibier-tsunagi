@@ -669,6 +669,7 @@ function townPendingHtml() {
       <form class="return-form" data-app-return-form="${esc(a.id)}" hidden>
         <label>戻す理由<select name="reason">${reasons.map((r) => `<option>${esc(r)}</option>`).join('')}</select></label>
         <label>一言（なくてもよい）<input name="note" maxlength="60" autocomplete="off" placeholder="例：3番の写真が暗い"></label>
+        <p class="muted" style="margin:0">${aiTag('理由を整える', 'riyu')} 一言は短く整えるだけで、意味は変えません。</p>
         <button class="primary" type="submit">この理由で戻す</button>
       </form>`)).join('');
   const retHtml = returned.map((a) => { const r = lastReturn(a); return card(a, `<p class="ac-return">${icon('alert')}不足：${esc(r?.reason || '')}${r?.note ? `（${esc(r.note)}）` : ''}<small>チームの直しを待っています</small></p>`); }).join('');
@@ -896,8 +897,13 @@ document.addEventListener('submit', (e) => {
   if (rf) {
     e.preventDefault();
     const fd = new FormData(rf);
-    doApp(rf.dataset.appReturnForm, 'return', { reason: String(fd.get('reason') || ''), note: String(fd.get('note') || '').trim() });
-    toast('理由つきで戻しました。チームの画面に出ます。');
+    const id = rf.dataset.appReturnForm;
+    const reason = String(fd.get('reason') || '');
+    const note = String(fd.get('note') || '').trim();
+    const finish = (n) => { doApp(id, 'return', { reason, note: n }); toast('理由つきで戻しました。チームの画面に出ます。'); };
+    // つながっていれば、一言を Claude が短く整える（意味は変えない）。だめならそのまま
+    if (AI.connected && note) askAi('riyu', { reason, note }).then((r) => finish(r.text || note)).catch(() => finish(note));
+    else finish(note);
     return;
   }
   if (e.target.closest('[data-answer]')) {

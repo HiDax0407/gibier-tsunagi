@@ -11,6 +11,7 @@ export const MODELS = {
   seiri: { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' },
   kikikaeshi: { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
   nuke: { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
+  riyu: { id: 'claude-haiku-5-5', label: 'Claude Haiku 5.5' },
 };
 export const API_VERSION = '2026-10-21';
 const apiUrl = (env) => `${String(env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '')}/v1/messages`;
@@ -82,6 +83,14 @@ ${RULES}
 - 写真から獣の種類を判定しない
 出力の形：{"items":[{"id":"記録の id","label":"短い指摘（例：言葉は2頭、頭数は1）"}]}`,
     user: ({ logs }) => `記録（JSON）：\n${JSON.stringify(logs)}`,
+  },
+  riyu: {
+    system: `あなたは「ジビエつなぎ」の町の担当の方の手伝い役です。町がチームへ記録を戻すときの「理由」と「一言」を、チームが読んですぐ直せる短い一文（60字以内）に整えます。
+意味を変えない・足さない・責めない言い方にする。理由の種類（写真が不鮮明 など）はそのまま残す。
+${RULES}
+- 対象かどうか・金額・許可の可否を書かない
+出力の形：{"text":"整えた一文"}`,
+    user: ({ reason, note }) => `理由：${reason}\n一言：${note || '（なし）'}`,
   },
 };
 
@@ -156,6 +165,14 @@ export function checkNuke(out, logs) {
     result.push({ id, label });
   }
   return result;
+}
+
+// 戻す理由の文：短く・お金や許可の判断が混ざっていなければ使う
+export function checkRiyu(out) {
+  const text = String(out?.text || '').trim();
+  if (!text || text.length > 60) return null;
+  if (MONEY.test(text) || /許可|免許/.test(text)) return null;
+  return { text };
 }
 
 // 聞き返し：質問は1つだけ・工程と型は一覧の中から・短く・「？」で終わる

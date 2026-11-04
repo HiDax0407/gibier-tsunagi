@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadRaw, buildTeam } from './src/team.mjs';
-import { loadEnv, aiStatus, callClaude, checkSeiri, checkKikikaeshi, checkNuke } from './src/ai.mjs';
+import { loadEnv, aiStatus, callClaude, checkSeiri, checkKikikaeshi, checkNuke, checkRiyu } from './src/ai.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 // Claude のキーは .env か環境変数から（リポジトリには入れない）。無ければ未接続のまま動く
@@ -61,6 +61,15 @@ async function aiRoute(task, req, res) {
       if (!out) return sendJson(res, 422, { error: '本人の言葉のままではなかったので、見本のままにします' });
       return sendJson(res, 200, { ...out, model });
     }
+    if (task === 'riyu') {
+      const reason = String(body.reason || '').slice(0, 40);
+      const note = String(body.note || '').slice(0, 200);
+      if (!reason) return sendJson(res, 400, { error: '理由がありません' });
+      const { data, model } = await callClaude('riyu', { reason, note });
+      const out = checkRiyu(data);
+      if (!out) return sendJson(res, 422, { error: '整えた文が使えなかったので、そのままにします' });
+      return sendJson(res, 200, { ...out, model });
+    }
     if (task === 'nuke') {
       // 欄と話した言葉だけを渡す（写真の中身は渡さない・判定しない）
       const logs = (Array.isArray(body.logs) ? body.logs : []).slice(0, 100).map((r) => ({
@@ -90,6 +99,7 @@ export const server = createServer(async (req, res) => {
   if (url.pathname === '/api/ai/seiri' && req.method === 'POST') return aiRoute('seiri', req, res);
   if (url.pathname === '/api/ai/kikikaeshi' && req.method === 'POST') return aiRoute('kikikaeshi', req, res);
   if (url.pathname === '/api/ai/nuke' && req.method === 'POST') return aiRoute('nuke', req, res);
+  if (url.pathname === '/api/ai/riyu' && req.method === 'POST') return aiRoute('riyu', req, res);
 
   if (url.pathname === '/api/team' && req.method === 'GET') {
     try {
