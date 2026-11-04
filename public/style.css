@@ -622,3 +622,32 @@ details.gaps[open] > summary { margin-bottom: 8px; }
 .legend.small .lg b { font-size: 16px; }
 .demo-box { margin-top: 24px; padding: 12px 14px; border: 1.5px dashed var(--line); border-radius: 12px; }
 .demo-box h3 { margin: 0 0 8px; font-size: 15px; color: var(--sub); }
+
+/* ---------- 町とのやりとり：止まっている所と足りない物を見えるようにする ---------- */
+.app-card { border: 1.5px solid var(--line); border-left: 4px solid var(--sub); border-radius: 14px; padding: 12px 14px; margin: 0 0 16px; background: #fff; }
+.app-card.s-checking { border-left-color: var(--accent); }
+.app-card.s-returned { border-left-color: var(--warn); }
+.app-card.s-confirmed, .app-card.s-done { border-left-color: var(--accent); }
+.app-card .ac-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.app-card .ac-head b { font-size: 19px; }
+.app-card .ac-head span { color: var(--sub); font-size: 14px; }
+.app-card .ac-next { margin: 4px 0 8px; font-size: 15px; color: var(--sub); }
+.app-card .ac-next b { color: var(--ink); font-size: 17px; }
+.app-card .ac-return { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; padding: 8px 10px; border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 0 10px 10px 0; color: var(--warn); font-weight: 700; }
+.app-card .ac-return small { color: var(--sub); font-weight: 500; width: 100%; }
+.app-card .req { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
+.app-card .req h4 { margin: 0 0 6px; font-size: 15px; }
+.app-card .req .okline { margin: 4px 0; }
+.app-card .hist { margin-top: 8px; }
+.app-card .hist summary { font-size: 14px; color: var(--sub); font-weight: 700; }
+.app-card .hist ol { margin: 4px 0 0; padding-left: 1.2em; font-size: 14px; color: var(--sub); }
+.app-card button.primary.wide { margin: 12px 0 4px; }
+.app-card .row2 { margin-top: 10px; }
+.return-form { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border: 1.5px dashed var(--line); border-radius: 12px; }
+.return-form label { display: grid; gap: 4px; font-weight: 700; font-size: 14px; }
+.return-form select, .return-form input { font: inherit; font-size: 16px; padding: 10px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); min-height: 44px; }
+.oks.one { grid-template-columns: 1fr auto; align-items: center; }
+.pill.sent { border-color: var(--accent); color: var(--accent); }
+.lic-note { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 8px; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 0 10px 10px 0; font-size: 15px; }
+.lic-note .ico { flex: none; color: var(--warn); margin-top: 2px; }
+.lic-note small { display: block; color: var(--sub); font-size: 13px; margin-top: 2px; }

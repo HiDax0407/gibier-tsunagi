@@ -18,6 +18,7 @@ function loadPlaywright() {
 }
 const { chromium } = loadPlaywright();
 
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'); // 1px の写真（試験用）
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? '✓' : '✖'} ${name}${detail ? `　${detail}` : ''}`); };
 const text = async (page, sel) => (await page.locator(sel).first().innerText()).replace(/\s+/g, ' ').trim();
@@ -90,25 +91,39 @@ try {
   await page.waitForTimeout(150);
   check('1:45 本人とチームが「はい」', ((await text(page, '.rec')).match(/はい/g) || []).length === 2);
 
-  // 2:10 記録タブ（先頭に「記録を足す」）
+  // 2:10 記録タブ（先頭に「記録を足す」）→ 今朝の記録（写真つき）→ チームの確認 → 必要項目がそろう → 町へ出す
   await page.click('#tabs a[href="#/log"]');
   await page.waitForSelector('[data-log-add]');
   await page.click('[data-log-add]');
   await page.waitForSelector('#log-text');
-  await page.fill('#log-text', '1番にシカがかかっとった');
+  await page.fill('#log-text', '1番にシカが1頭かかっとった');
   await page.dispatchEvent('#log-text', 'input');
   await page.waitForTimeout(200);
+  await page.setInputFiles('form.logadd input[name=photo]', { name: 'shika.png', mimeType: 'image/png', buffer: PNG });
   await page.click('form.logadd button[type=submit]');
-  await page.waitForTimeout(400);
-  await page.locator('details.gaps > summary').click();
-  await page.waitForTimeout(150);
-  check('2:10 抜けに「写真なし・頭数なし」', /1番・捕獲 写真なし・頭数なし/.test(await text(page, '.gaps')));
+  await page.waitForTimeout(600);
+  check('2:10 今朝の記録が一番上（捕獲・1番・シカ・1頭・写真あり）', /捕獲 1番 シカ・1頭/.test(await text(page, '.rec.log')) && /写真あり/.test(await text(page, '.rec.log')));
+  check('2:10 町とのやりとり：11月分は下書き', /下書き/.test(await text(page, '.app-card')));
   await page.locator('.rec.log').first().locator('[data-log-ok]').click();
-  await page.waitForTimeout(150);
-  await page.locator('.rec.log').first().locator('[data-log-send]').click();
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
+  check('2:10 必要項目がそろった印', /必要項目がそろっています（1件）/.test(await text(page, '.app-card')));
+  check('2:10 「町へ出す」が押せる', await page.locator('[data-app-send]').isEnabled());
+  await page.click('[data-app-send]');
+  await page.waitForTimeout(300);
+  check('2:10 町が確認中・次に動くのは町', /町が確認中.*次に動くのは 町/.test(await text(page, '.app-card')));
   const rows = await page.locator('table.draft tbody tr').allInnerTexts();
-  check('2:10 町へ出す一覧に今朝の一行', rows.length === 1 && /捕獲\t1番/.test(rows[0]), rows[0]);
+  check('2:10 出す一覧に今朝の一行', rows.length === 1 && /捕獲\t1番/.test(rows[0]), rows[0]);
+  // 2:20 町の画面で「確認」→ 2:25 チームの画面に「確認済み」
+  await page.goto(`${base}/#/town`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.app-card');
+  const nov = page.locator('.app-card', { hasText: '2026年11月分' });
+  check('2:20 町の確認待ちに11月分（1件）', (await nov.count()) === 1 && /1件/.test(await nov.innerText()));
+  await nov.locator('[data-app-confirm]').click();
+  await page.waitForTimeout(300);
+  check('2:20 町が「確認」→ 確認済み・支払い待ち', /確認済み/.test(await page.locator('.app-card', { hasText: '2026年11月分' }).innerText()));
+  await page.goto(`${base}/#/log`, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.app-card');
+  check('2:25 チームの画面に「確認済み」', /確認済み・支払い待ち/.test(await text(page, '.app-card')));
 
   // 2:30 チームの表
   await page.click('#tabs a[href="#/team"]');

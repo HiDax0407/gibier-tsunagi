@@ -10,6 +10,9 @@ import { stepCoverage, nextQuestion, splitTejun, stepSentences } from './lib/kik
 import { toCsvText } from './lib/csv.js';
 import { logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
 import { SCOPES, scopeOf, scopeLabel, teamTalks, talksCsv } from './lib/talks.js';
+import { STATES, WHO, stateOf, sinceOf, nextOf, lastReturn, daysSince, act, expiringLicenses } from './lib/applications.js';
+import { applications, saveApplication } from './model.js';
+import { surname } from './lib/names.js';
 import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
 import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit } from './screens/log.js';
 import { renderWatch, watchClick } from './screens/watch.js';
@@ -104,6 +107,7 @@ function renderTeam() {
     </ul>
     <section id="step-panel">${stepPanelHtml()}</section>
     ${todayNotes.length ? `<ul class="today-notes">${todayNotes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+    ${licenseNote()}
     <p class="muted">${esc(data.licenseCheckNote)}</p>
     <p class="muted" style="margin-top:-4px">番号が緑の工程は、話す画面で残した話にその工程が出てきた印です。押すと、その工程で残った本人の言葉が読めます。人名・数は架空のデモです。</p>
     <section class="checks">
@@ -125,6 +129,13 @@ function renderTeam() {
     <button class="outline wide" data-go="report" style="margin-top:12px">${icon('chat')}見かけたら知らせる（住民の方の画面）</button>
     <button class="link reset" data-scene="asa">撮影用：「ある朝」の最初の状態にする</button>
     <button class="link reset" data-reset style="margin-top:0">デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
+}
+
+// 免許・許可の期限：60日前から「更新の申請を」と知らせる（本人申告の期限。可否は判断しない）
+function licenseNote() {
+  const soon = expiringLicenses(data.licenses, Date.now(), 60);
+  if (!soon.length) return '';
+  return `<p class="lic-note">${icon('calendar')}<span><b>更新の申請を：</b>${soon.map((s) => `${esc(surname(s.name))}さんの${esc(s.kind)}が${esc(dayLabel(s.expires))}に切れます（あと${s.days}日）`).join('／')}<small>本人申告の期限です。更新の手続きと可否は県・市町村の窓口で（要確認）。</small></span></p>`;
 }
 
 // 緑の番号を押したときに出る「この工程で残った言葉」（新しく入る人が、先輩の言葉を工程ごとに読める）
@@ -615,6 +626,7 @@ function renderTown(arg) {
       <li>計画の見直しや報告の材料に使えるかは、町の窓口で確かめてください（要確認）。</li>
     </ul>
     <a class="goal-link" href="#/impact" style="margin-top:20px"><span class="gl-k">目的：害獣の被害を減らす</span><span class="gl-v"><span>被害の知らせ・捕獲・見回りの移り変わりをグラフで見る</span></span><span class="gl-go">見える化 ${ICON.next}</span></a>
+    ${townPendingHtml()}
     <h2>県へ上げる数の下書き（${esc(monthText)}）</h2>
     <p class="muted" style="margin-top:-6px">地区ごとの数と合計です。個人名は出しません。交付金・報償金の対象かどうかと金額は判断しません。数に入るのは、チームが確かめて「町へ出す」を押した記録だけです。</p>
     ${pending ? `<p class="pending-note">${icon('clock')}北沢地区で、チームが確かめ中の記録が <b>${pending}件</b> あります（まだ数に入っていません）。</p>` : ''}
@@ -632,6 +644,52 @@ function renderTown(arg) {
     </section>`;
 }
 
+// 町側：確認待ち（確認・戻す・まとめて確認）と支払い待ち。押すのは町の人。アプリは可否・金額を判断しない
+function townPendingHtml() {
+  const names = Object.fromEntries(data.town.districts.map((d) => [d.id, d.name]));
+  const apps = applications();
+  // 件数：北沢はこの端末の記録から数え、無ければデータの件数。ほかの地区は架空の件数
+  const countOf = (a) => (a.district === data.homeDistrict ? (logs().filter((r) => r.district === a.district && r.teamOk && r.sent && String(fmtDateTime(r.datetime)).startsWith(a.month)).length || a.count || 0) : a.count || 0);
+  const waiting = apps.filter((a) => stateOf(a) === 'checking');
+  const returned = apps.filter((a) => stateOf(a) === 'returned');
+  const paying = apps.filter((a) => stateOf(a) === 'confirmed');
+  const dl = data.townRules.deadlines || {};
+  const reasons = data.townRules.returnReasons || [];
+  const card = (a, body) => {
+    const st = stateOf(a);
+    const days = daysSince(sinceOf(a));
+    return `<article class="app-card s-${st}">
+      <div class="ac-head"><b>${esc(names[a.district] || a.district)}・${esc(monthLabel(a.month))}分</b><span>${countOf(a)}件・${esc(dayLabel(sinceOf(a)))}${days != null ? `・${days}日` : ''}</span></div>
+      <p class="ac-next">${esc(STATES[st].label)}・次に動くのは <b>${esc(WHO[nextOf(a)] || '—')}</b></p>
+      ${body}
+    </article>`;
+  };
+  const waitHtml = waiting.map((a) => card(a, `
+      <div class="row2"><button class="primary" data-app-confirm="${esc(a.id)}">確認</button><button class="outline" data-app-return="${esc(a.id)}">戻す</button></div>
+      <form class="return-form" data-app-return-form="${esc(a.id)}" hidden>
+        <label>戻す理由<select name="reason">${reasons.map((r) => `<option>${esc(r)}</option>`).join('')}</select></label>
+        <label>一言（なくてもよい）<input name="note" maxlength="60" autocomplete="off" placeholder="例：3番の写真が暗い"></label>
+        <button class="primary" type="submit">この理由で戻す</button>
+      </form>`)).join('');
+  const retHtml = returned.map((a) => { const r = lastReturn(a); return card(a, `<p class="ac-return">${icon('alert')}不足：${esc(r?.reason || '')}${r?.note ? `（${esc(r.note)}）` : ''}<small>チームの直しを待っています</small></p>`); }).join('');
+  const payHtml = paying.map((a) => card(a, `<button class="outline" data-app-pay="${esc(a.id)}">支払った（完了にする）</button>`)).join('');
+  return `
+    <h2>確認待ち</h2>
+    ${waiting.length > 1 ? `<button class="outline wide" data-app-confirm-all style="margin-bottom:12px">まとめて確認（町が確認中の ${waiting.length}件）</button>` : ''}
+    ${waitHtml || '<p class="muted">町が確認中の申請はありません。</p>'}
+    ${retHtml ? `<h3 style="margin:14px 0 8px">戻したもの（チームの直し待ち）</h3>${retHtml}` : ''}
+    ${payHtml ? `<h3 style="margin:14px 0 8px">支払い待ち</h3>${payHtml}` : ''}
+    <p class="muted">この町の目安：締め日 ${esc(dl.close || '—')}・確認 ${esc(dl.check || '—')}・支払い ${esc(dl.pay || '—')}（町が決めた目安。表示するだけ）。確認・戻す・支払いは町の人が押します。対象かどうか・金額・許可の可否は、このアプリは判断しません。</p>`;
+}
+function doApp(id, action, extra = {}) {
+  const app = applications().find((a) => a.id === id);
+  if (!app) return;
+  try { saveApplication(act(app, action, { at: todayStr(), ...extra })); } catch (err) { toast(err.message); return; }
+  const y = window.scrollY;
+  renderTown(location.hash.split('/')[2]);
+  window.scrollTo(0, y);
+}
+
 function townCsv(month) {
   const { rows, total } = townTotals(townRows(data.town.districts, townLive(month)));
   const line = (r) => [r.name, r.deer, r.boar, r.patrol, r.reports];
@@ -639,7 +697,7 @@ function townCsv(month) {
 }
 
 // ---------- 切り替え ----------
-const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene'];
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene'];
 function clearLocal() {
   for (const k of LOCAL_KEYS) {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
@@ -702,6 +760,21 @@ document.addEventListener('click', (e) => {
   }
   const tcsv = e.target.closest('[data-town-csv]');
   if (tcsv) { townCsv(townMonth(tcsv.dataset.townCsv)); return; }
+  const ac = e.target.closest('[data-app-confirm]');
+  if (ac) { doApp(ac.dataset.appConfirm, 'confirm'); toast('確認しました。チームの画面にも「確認済み」と出ます。'); return; }
+  const ap = e.target.closest('[data-app-pay]');
+  if (ap) { doApp(ap.dataset.appPay, 'pay'); return; }
+  if (e.target.closest('[data-app-confirm-all]')) {
+    for (const a of applications().filter((x) => stateOf(x) === 'checking')) doApp(a.id, 'confirm');
+    toast('まとめて確認しました。');
+    return;
+  }
+  const ar = e.target.closest('[data-app-return]');
+  if (ar) {
+    const f = document.querySelector(`[data-app-return-form="${CSS.escape(ar.dataset.appReturn)}"]`);
+    if (f) { f.hidden = !f.hidden; if (!f.hidden) f.querySelector('select')?.focus(); }
+    return;
+  }
   if (e.target.closest('[data-talks-csv]')) { saveCsv(`残した話_${todayStr()}.csv`, talksCsv(savedTalks())); return; }
   const del = e.target.closest('[data-talk-del]');
   if (del) {
@@ -819,6 +892,14 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('submit', (e) => {
   if (mapSubmit(e) || logSubmit(e) || reportSubmit(e)) return;
+  const rf = e.target.closest('[data-app-return-form]');
+  if (rf) {
+    e.preventDefault();
+    const fd = new FormData(rf);
+    doApp(rf.dataset.appReturnForm, 'return', { reason: String(fd.get('reason') || ''), note: String(fd.get('note') || '').trim() });
+    toast('理由つきで戻しました。チームの画面に出ます。');
+    return;
+  }
   if (e.target.closest('[data-answer]')) {
     e.preventDefault();
     voice.stop();

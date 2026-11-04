@@ -4,8 +4,9 @@
 // 町に出すのは、チームが確かめて「出す」を押したものだけ。
 // 写真は添付として残すだけで、写真から獣の種類を判定しない。
 import { ICON } from '../icons.js';
-import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag, recSeg } from '../ui.js';
-import { logs, addLog, editLog, setPhoto, addReport, traps, markSpoke } from '../model.js';
+import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag, recSeg, dayLabel } from '../ui.js';
+import { logs, addLog, editLog, setPhoto, addReport, traps, markSpoke, appFor, saveApplication } from '../model.js';
+import { STATES, WHO, stateOf, sinceOf, nextOf, lastReturn, daysSince, requiredGaps, act } from '../lib/applications.js';
 import { COLUMNS, DEFAULT_COLUMNS, KINDS, SPECIES, findGaps, logsForMonth, draftTable, draftCsv, fmtDateTime } from '../lib/log.js';
 import { parsePatrol } from '../lib/traps.js';
 import { monthOf, shiftMonth, monthLabel } from '../lib/teach.js';
@@ -64,8 +65,9 @@ export function renderLog(month) {
         <button class="mbtn" data-go="log/${shiftMonth(month, 1)}" aria-label="次の月">${ICON.next}</button>
       </div>
       ${recHtml}
-      <h2>町へ出す一覧（下書き）</h2>
-      <p class="muted" style="margin-top:-6px">チームが確かめて「町へ出す」を押した記録だけが入ります。町の様式に合わせて、列と並びを選べます。</p>
+      ${townSection(month, list)}
+      <h2>出す一覧（${esc(monthLabel(month))}分）</h2>
+      <p class="muted" style="margin-top:-6px">チームが確かめた記録が入ります。町の様式に合わせて、列と並びを選べます。</p>
       <details class="cols"><summary>列を選ぶ（町の様式に合わせる）</summary><ul>${colPicker}</ul></details>
       <div class="tscroll">${tableHtml('draft')}</div>
       <div class="row2">
@@ -80,12 +82,51 @@ export function renderLog(month) {
     </div>
     <section class="print-only">
       <h1>活動と捕獲の一覧（下書き）　${esc(monthLabel(month))}</h1>
-      <p>${esc(ctx.data.area.name)}　／　チームが確かめて「町へ出す」を押した記録</p>
+      <p>${esc(ctx.data.area.name)}　／　チームが確かめた記録</p>
       ${tableHtml()}
       <p>チームの確認者（署名）＿＿＿＿＿＿＿＿＿＿　　確認日＿＿＿＿＿＿</p>
       <p class="small">交付金・報償金の対象かどうかと金額は、このアプリでは判断していません。人名・地名はすべて架空のデモです。</p>
     </section>`;
   showNuke(shown);
+}
+
+// ---------- 町とのやりとり（チーム側）：止まっている所と足りない物を見えるようにするだけ ----------
+// 「出す」「再提出」はチームが押す。対象かどうか・金額・許可の可否は判断しない
+function townSection(month, list) {
+  const app = appFor(ctx.data.homeDistrict, month);
+  const st = stateOf(app);
+  const next = nextOf(app);
+  const since = sinceOf(app);
+  const days = daysSince(since);
+  const included = list.filter((r) => r.teamOk);
+  const notYet = list.length - included.length;
+  const rgaps = requiredGaps(included, ctx.data.townRules);
+  const ret = st === 'returned' ? lastReturn(app) : null;
+  const dl = ctx.data.townRules.deadlines || {};
+  const rec = (id) => list.find((x) => x.id === id);
+  const label = (r) => `${r.datetime ? timeLabel(r.datetime) : '日時なし'}・${r.trapNo ? `${r.trapNo}番・` : ''}${r.kind}`;
+  const canAct = st === 'draft' || st === 'returned';
+  return `
+      <h2>町とのやりとり（${esc(monthLabel(month))}分）</h2>
+      <article class="app-card s-${st}">
+        <div class="ac-head"><b>${esc(STATES[st].label)}</b>${since ? `<span>${esc(dayLabel(since))}から${days != null ? `・${days}日` : ''}</span>` : ''}</div>
+        <p class="ac-next">次に動くのは <b>${next ? esc(WHO[next]) : '—'}</b>${st === 'done' ? '（終わっています）' : ''}</p>
+        ${ret ? `<p class="ac-return">${icon('alert')}不足：${esc(ret.reason)}${ret.note ? `（${esc(ret.note)}）` : ''}<small>町からの理由</small></p>` : ''}
+        ${canAct ? `
+        <div class="req">
+          <h4>町の必要項目と照らす</h4>
+          ${included.length
+            ? (rgaps.length
+              ? `<ul class="gap-list">${rgaps.map((g) => `<li><a href="#log-${esc(g.id)}" data-jump="${esc(g.id)}">${esc(label(rec(g.id)))}</a><span>足りない：${g.missing.map(esc).join('・')}</span></li>`).join('')}</ul>`
+              : `<p class="okline">${icon('clipboard')}必要項目がそろっています（${included.length}件）</p>`)
+            : '<p class="muted" style="margin:0">チームが確かめた記録がまだありません。記録の「チームの確認」を押してください。</p>'}
+          ${notYet ? `<p class="muted" style="margin:6px 0 0">チームの確認待ちの記録 ${notYet}件は、この申請に入りません。</p>` : ''}
+          <p class="muted" style="margin:6px 0 0">${aiTag('抜け探し', 'nuke')} 足りない項目を並べるだけ。対象かどうか・金額・許可の可否は判断しません。</p>
+        </div>
+        <button class="primary wide" data-app-send="${esc(app.id)}" ${!included.length || rgaps.length ? 'disabled' : ''}>${st === 'returned' ? '直して再提出' : '町へ出す'}（${included.length}件）</button>` : ''}
+        <details class="hist"><summary>これまでの動き</summary><ol>${app.history.map((h) => `<li>${esc(dayLabel(h.at))}　${esc(STATES[h.state]?.label || h.state)}${h.note ? `・${esc(h.note)}` : ''}${h.reason ? `・理由：${esc(h.reason)}` : ''}（${esc(WHO[h.by] || h.by)}）</li>`).join('')}</ol></details>
+      </article>
+      <p class="muted">この町の目安：締め日 ${esc(dl.close || '—')}・確認 ${esc(dl.check || '—')}・支払い ${esc(dl.pay || '—')}（町が決めた目安。表示するだけ）</p>`;
 }
 
 // Claude の抜け探し（話した言葉と欄の食い違い）。返事は月の記録の組ごとに一度だけ頼む
@@ -122,9 +163,9 @@ function recordCard(r) {
       <div class="pp">記録した人 <b>${esc(r.by || '—')}さん</b></div>
       ${r.text ? `<p class="w">「${esc(r.text)}」</p>` : ''}
       ${photo}
-      <div class="oks">
+      <div class="oks one">
         <button class="ok" data-log-ok="${esc(r.id)}" aria-pressed="${!!r.teamOk}"><span class="box">✓</span><span>チームの確認<b>${r.teamOk ? 'はい' : 'まだ'}</b></span></button>
-        <button class="ok send" data-log-send="${esc(r.id)}" aria-pressed="${!!r.sent}" ${r.teamOk ? '' : 'disabled'}><span class="box">✓</span><span>町へ<b>${r.sent ? '出した' : '出す'}</b></span></button>
+        ${r.sent ? '<span class="pill sm sent">町へ出した</span>' : ''}
       </div>
       <button class="link" data-log-edit="${esc(r.id)}">${editing === r.id ? '閉じる' : '直す'}</button>
       ${edit}
@@ -220,11 +261,17 @@ export function logClick(e) {
     rerender();
     return true;
   }
-  const send = e.target.closest('[data-log-send]');
-  if (send) {
-    const r = logs().find((x) => x.id === send.dataset.logSend);
-    if (!r.teamOk) return true;
-    editLog(r.id, { sent: !r.sent });
+  const appSend = e.target.closest('[data-app-send]');
+  if (appSend) {
+    const month = currentMonth();
+    const app = appFor(ctx.data.homeDistrict, month);
+    const included = logsForMonth(logs(), month).filter((r) => r.teamOk);
+    if (requiredGaps(included, ctx.data.townRules).length || !included.length) return true;
+    try {
+      saveApplication(act(app, stateOf(app) === 'returned' ? 'resend' : 'send', { at: todayStr() }));
+      for (const r of included) editLog(r.id, { sent: true });
+      toast(`${monthLabel(month)}分（${included.length}件）を町へ出しました。次に動くのは町です。`);
+    } catch (err) { toast(err.message); }
     rerender();
     return true;
   }

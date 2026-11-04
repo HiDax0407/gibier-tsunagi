@@ -3,6 +3,7 @@ import { ctx, store, todayStr } from './ui.js';
 import { placeTraps } from './lib/traps.js';
 import { surname } from './lib/names.js';
 import { applyDecided, stopRisks } from './lib/team-rows.js';
+import { monthlyApp } from './lib/applications.js';
 
 // デモデータの「◯時間前」「◯日前」は、画面を開いた時刻から数える
 export const OPENED = Date.now();
@@ -95,6 +96,20 @@ export function addTeach(rec) {
   list.push({ id: `local-${Date.now()}`, date: todayStr(), teacherOk: false, teamOk: false, ...rec });
   store.set('teachAdded', list);
 }
+
+// ---------- 町とのやりとり（月ごとの申請）：データに、この端末で動かした状態を重ねる ----------
+export function applications() {
+  const over = store.get('appsOver', {});
+  const base = ctx.data.applications.map((a) => over[a.id] || a);
+  const extra = Object.values(over).filter((a) => !ctx.data.applications.some((b) => b.id === a.id));
+  return [...base, ...extra];
+}
+export function saveApplication(app) {
+  const over = store.get('appsOver', {});
+  over[app.id] = app;
+  store.set('appsOver', over);
+}
+export const appFor = (district, month) => monthlyApp(applications(), district, month);
 
 // ---------- 見守り：最後に話した日 ----------
 export function lastSpoke() {

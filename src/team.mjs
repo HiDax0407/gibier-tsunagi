@@ -16,7 +16,9 @@ export function loadRaw() {
   const activity = JSON.parse(readFileSync(join(root, 'data/activity_log.json'), 'utf8'));
   const watch = JSON.parse(readFileSync(join(root, 'data/watch.json'), 'utf8'));
   const impact = JSON.parse(readFileSync(join(root, 'data/impact.json'), 'utf8'));
-  return { prepared, roles, teach, town, traps, activity, watch, impact };
+  const applications = JSON.parse(readFileSync(join(root, 'data/applications.json'), 'utf8'));
+  const townRules = JSON.parse(readFileSync(join(root, 'data/town_rules.json'), 'utf8'));
+  return { prepared, roles, teach, town, traps, activity, watch, impact, applications, townRules };
 }
 
 import { coverage, stopRisks } from '../public/lib/team-rows.js';
@@ -34,6 +36,8 @@ export function buildTeam({
   activity = { logs: [], reports: [] },
   watch = { people: [] },
   impact = { months: [], deer: [], boar: [], damage: [], patrol: [], two_or_more: [] },
+  applications = { applications: [] },
+  townRules = { required: [], deadlines: {}, return_reasons: [] },
 }) {
   const rows = prepared.current_roles.map((r) => {
     const meta = roles.roles[r.role] || {};
@@ -102,5 +106,9 @@ export function buildTeam({
     // 被害を減らす見える化（架空の推移・数だけ）
     impact: { months: impact.months, deer: impact.deer, boar: impact.boar, damage: impact.damage, patrol: impact.patrol, twoOrMore: impact.two_or_more },
     watch: watch.people.map((p) => ({ name: p.name, spokeDaysAgo: p.spokeDaysAgo, afterDays: p.afterDays, notify: p.notify })),
+    // 町とのやりとり（月ごとの申請）・町が決めた必要項目と目安・免許の期限（架空・本人申告）
+    applications: applications.applications,
+    townRules: { required: townRules.required, deadlines: townRules.deadlines, returnReasons: townRules.return_reasons },
+    licenses: roles.licenses || [],
   };
 }

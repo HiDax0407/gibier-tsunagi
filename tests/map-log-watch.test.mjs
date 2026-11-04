@@ -85,10 +85,10 @@ test('抜けチェック：写真なし・日時なし・獣種なし・頭数�
   assert.deepEqual(of('a6'), ['datetime', 'team']);
 });
 
-test('町へ出す下書きは、チームが確かめて「出す」を押したものだけ', () => {
+test('出す一覧は、チームが確かめた記録だけ（出すかどうかは月ごとの申請で決める）', () => {
   const t = draftTable(team.logs, DEFAULT_COLUMNS, { kitazawa: '北沢地区（架空）' });
   assert.deepEqual(t.head, ['日時', '種類', 'わな', '地区', '獣種', '頭数', '写真']);
-  assert.equal(t.rows.length, 3); // a1・a2・a3（a4 は確かめ済みだがまだ出していない）
+  assert.equal(t.rows.length, 4); // a1〜a4（a5・a6 はチームの確認待ち）
   assert.deepEqual(t.rows[1], ['2026-10-22 07:10', '捕獲', '3番', '北沢地区（架空）', 'シカ', '1', 'あり']);
 });
 

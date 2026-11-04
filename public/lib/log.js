@@ -72,14 +72,15 @@ export function findGaps(logs) {
   return gaps;
 }
 
-// 町へ出す一覧の下書き：チームが確かめて「出す」を押したものだけ
+// 町へ出した記録（月ごとの申請を「出す」と、その月のチームが確かめた記録に印が付く）
 export const sentOnly = (logs) => logs.filter((r) => r.teamOk && r.sent);
 
+// 出す一覧：チームが確かめた記録（出すかどうかは月ごとの申請で決める）
 export function draftTable(logs, columns, districtNames = {}) {
   const cols = columns.filter((c) => COLUMNS.some((x) => x.id === c));
   return {
     head: cols.map((c) => COLUMNS.find((x) => x.id === c).label),
-    rows: sentOnly(logs).map((r) => cols.map((c) => cellValue(r, c, districtNames))),
+    rows: logs.filter((r) => r.teamOk).map((r) => cols.map((c) => cellValue(r, c, districtNames))),
   };
 }
 
