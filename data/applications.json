@@ -1,0 +1,117 @@
+{
+  "_note": "2026-11-05 期間中に作成。町とのやりとり（月ごとの申請）のデモデータ。地区・月・日付・件数・理由はすべて架空。状態は履歴の最後。アプリは対象かどうか・金額・許可の可否を判断しない。",
+  "applications": [
+    {
+      "id": "ap-kitazawa-2026-09",
+      "district": "kitazawa",
+      "month": "2026-09",
+      "count": 4,
+      "history": [
+        {
+          "state": "draft",
+          "at": "2026-09-30",
+          "by": "team"
+        },
+        {
+          "state": "checking",
+          "at": "2026-10-01",
+          "by": "team",
+          "note": "出した"
+        },
+        {
+          "state": "returned",
+          "at": "2026-10-06",
+          "by": "town",
+          "reason": "写真が不鮮明",
+          "note": "3番の写真が暗くて獣種が分からない"
+        },
+        {
+          "state": "checking",
+          "at": "2026-10-08",
+          "by": "team",
+          "note": "直して再提出"
+        },
+        {
+          "state": "confirmed",
+          "at": "2026-10-14",
+          "by": "town"
+        }
+      ]
+    },
+    {
+      "id": "ap-kitazawa-2026-10",
+      "district": "kitazawa",
+      "month": "2026-10",
+      "history": [
+        {
+          "state": "draft",
+          "at": "2026-10-31",
+          "by": "team"
+        },
+        {
+          "state": "checking",
+          "at": "2026-11-01",
+          "by": "team",
+          "note": "出した"
+        }
+      ]
+    },
+    {
+      "id": "ap-kitazawa-2026-11",
+      "district": "kitazawa",
+      "month": "2026-11",
+      "history": [
+        {
+          "state": "draft",
+          "at": "2026-11-01",
+          "by": "team"
+        }
+      ]
+    },
+    {
+      "id": "ap-minamisawa-2026-10",
+      "district": "minamisawa",
+      "month": "2026-10",
+      "count": 5,
+      "history": [
+        {
+          "state": "draft",
+          "at": "2026-10-31",
+          "by": "team"
+        },
+        {
+          "state": "checking",
+          "at": "2026-11-03",
+          "by": "team",
+          "note": "出した"
+        }
+      ]
+    },
+    {
+      "id": "ap-higashihara-2026-10",
+      "district": "higashihara",
+      "month": "2026-10",
+      "count": 3,
+      "history": [
+        {
+          "state": "draft",
+          "at": "2026-10-31",
+          "by": "team"
+        },
+        {
+          "state": "checking",
+          "at": "2026-11-02",
+          "by": "team",
+          "note": "出した"
+        },
+        {
+          "state": "returned",
+          "at": "2026-11-04",
+          "by": "town",
+          "reason": "頭数が合わない",
+          "note": "2頭の記録が1頭になっている"
+        }
+      ]
+    }
+  ]
+}
