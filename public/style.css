@@ -86,7 +86,7 @@ h2 { font-size: 22px; font-weight: 800; margin: 28px 0 10px; }
   display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center;
   padding: 14px 2px; border-bottom: 1px solid var(--line);
 }
-.trow .no { color: var(--faint); font-size: 17px; }
+.trow .no { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--soft); color: var(--faint); font-size: 14px; font-weight: 700; }
 .trow .role { font-weight: 700; font-size: 17px; line-height: 1.35; }
 .trow .lic { margin-top: 4px; }
 .who { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; max-width: 168px; }
@@ -385,7 +385,7 @@ form.patrol select, form.report select, form.report input[type=file], form.logad
 .toast.on { opacity: 1; transform: none; }
 
 /* 活動と捕獲の記録 */
-.gaps { border: 1.5px solid var(--warn); background: var(--warn-soft); border-radius: 14px; padding: 12px 14px; margin: 14px 0 16px; }
+.gaps { border: 1px solid var(--line); border-left: 4px solid var(--warn); background: #fff; border-radius: 14px; padding: 12px 14px; margin: 14px 0 16px; }
 .gaps h3 { display: flex; align-items: center; gap: 6px; font-size: 17px; margin: 0 0 8px; color: var(--warn); }
 .gaps h3 b { margin-left: auto; font-size: 18px; }
 .gap-list { list-style: none; margin: 0; padding: 0; }
@@ -431,7 +431,7 @@ table.sum tbody tr:last-child th, table.sum tbody tr:last-child td { font-weight
 .wh .av { flex: none; }
 .wh > div b { display: block; font-size: 19px; font-weight: 800; }
 .wh span:not(.av) { font-size: 14px; color: var(--sub); }
-.walert { background: var(--warn-soft); color: var(--warn); font-weight: 800; border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; font-size: 16px; }
+.walert { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--warn); color: var(--warn); font-weight: 800; border-radius: 10px; padding: 10px 12px; margin: 12px 0 0; font-size: 16px; }
 .walert small { display: block; font-weight: 600; font-size: 12.5px; }
 .wset { font-size: 14px; margin: 10px 0 8px; }
 .wedit summary { cursor: pointer; color: var(--accent); font-weight: 700; font-size: 14px; padding: 8px 0 4px; }

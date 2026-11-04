@@ -146,7 +146,7 @@ export function renderImpact() {
     <section class="hero-card">
       <span class="hc-label">住民からの被害の知らせ（${esc(lastM)}）</span>
       <b class="hc-num">${dmg.last}<small>件</small></b>
-      <span class="hc-sub">${esc(first)}は ${dmg.first}件 → ${dmg.diff <= 0 ? `${-dmg.diff}件 少ない` : `${dmg.diff}件 多い`}</span>
+      <span class="hc-sub">${esc(first)}は ${dmg.first}件 → ${dmg.diff <= 0 ? `${-dmg.diff}件 少ない` : `${dmg.diff}件 多い`}<small class="muted">（架空のデモの数。効果ではありません）</small></span>
       ${lineChart(labels, d.damage, '件')}
     </section>
 
