@@ -651,3 +651,5 @@ details.gaps[open] > summary { margin-bottom: 8px; }
 .lic-note { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 8px; padding: 10px 12px; border: 1px solid var(--line); border-left: 4px solid var(--warn); border-radius: 0 10px 10px 0; font-size: 15px; }
 .lic-note .ico { flex: none; color: var(--warn); margin-top: 2px; }
 .lic-note small { display: block; color: var(--sub); font-size: 13px; margin-top: 2px; }
+/* 地図の＋−（Leaflet の部品）も 44px に（高齢の方が押せるように。見た目はそのまま） */
+.leaflet-control-zoom a { width: 44px !important; height: 44px !important; line-height: 44px !important; font-size: 22px !important; }
