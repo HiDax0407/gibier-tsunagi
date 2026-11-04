@@ -1,7 +1,7 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
-import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi } from './ui.js';
+import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi, recSeg } from './ui.js';
 import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 import { districtTotals, fmtDateTime } from './lib/log.js';
@@ -26,13 +26,12 @@ async function load() {
 }
 
 // ---------- 上の帯と下のタブ ----------
+// 下のタブは4つ。「止まる役割」「募集」はチームの中から、「教えた記録」は記録の中の切り替えから
 const TABS = [
   { id: 'talk', label: '話す', icon: 'mic' },
   { id: 'map', label: 'わな', icon: 'pin' },
   { id: 'team', label: 'チーム', icon: 'team' },
-  { id: 'risk', label: '止まる役割', icon: 'alert' },
-  { id: 'cards', label: '募集', icon: 'card' },
-  { id: 'teach', label: '教えた記録', icon: 'clipboard' },
+  { id: 'log', label: '記録', icon: 'doc' },
 ];
 
 function renderTabs(current) {
@@ -80,13 +79,19 @@ function renderTeam() {
     ...pairs.map((x) => `今朝、${x.trapNo}番のわなに${x.by}さんと${x.with}さんの二人で向かいました`),
     ...rowsNow.filter((r) => r.added?.length).map((r) => `「${r.role}」に、チームで決めて${r.added.join('・')}さんが入りました`),
   ];
+  // 先頭の一行：止まる役割（人数から作る文だけ。AI は使わない）
+  const risks = teamRisks();
+  const stopLine = risks.length
+    ? risks.map((r) => `${r.role.replace(/（.*?）/, '')}（${r.coverage === 'empty' ? '担当なし' : `${r.person}さん1人だけ`}）`).join('・')
+    : 'なし（すべての工程に2人以上）';
   const checks = store.get('goalChecks', {});
   const manual = data.goal.checks.filter((c) => !c.auto).map((c) => `
     <div class="check"><button data-goal="${esc(c.id)}" aria-pressed="${!!checks[c.id]}" aria-label="${esc(c.label)}">✓</button><span>${esc(c.label)}</span></div>`).join('');
 
   view.innerHTML = `
     <h1>${esc(areaName)}のチーム</h1>
-    <p class="audience"><a href="#/town">${icon('town')}町の担当の方へ：地区ごとの数</a><a href="#/report">${icon('chat')}住民の方へ：見かけたら知らせる</a></p>
+    <a class="stop-line" href="#/risk"><span class="k">${icon('alert')}止まる役割</span><span class="v">${esc(stopLine)}</span>${ICON.next}</a>
+    <button class="outline wide" data-go="cards" style="margin:0 0 18px">${icon('card')}募集カードを出す</button>
     <p class="goal-head">名産として出せる状態まで</p>
     <p class="goal-num">${left === 0 ? 'そろいました' : `あと${left}<small>つ</small>`}</p>
     <div class="segments" style="grid-template-columns:repeat(${total},1fr)" role="img" aria-label="2人以上いる工程 ${ok}/${total}">
@@ -117,6 +122,7 @@ function renderTeam() {
     </a>
     <button class="outline wide" data-go="watch" style="margin-top:4px">${icon('clock')}見守り（話していない日が続いたら知らせる）</button>
     <button class="outline wide" data-go="town" style="margin-top:12px">${icon('town')}町の地区一覧（町の担当の方向け）</button>
+    <button class="outline wide" data-go="report" style="margin-top:12px">${icon('chat')}見かけたら知らせる（住民の方の画面）</button>
     <button class="link reset" data-scene="asa">撮影用：「ある朝」の最初の状態にする</button>
     <button class="link reset" data-reset style="margin-top:0">デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
 }
@@ -175,7 +181,7 @@ function renderRisk() {
 
 // ---------- 4 募集カード（一覧） ----------
 function renderCards() {
-  renderTop();
+  renderTop({ back: '#/team', here: '募集' });
   const items = data.cards.map((c) => {
     const n = handsFor(c).length;
     return `<li><a href="#/cards/${esc(c.id)}">
@@ -297,7 +303,7 @@ function renderTalk() {
   const nHeard = cover.filter((c) => c.heard).length;
   view.innerHTML = `
     <h1>話す</h1>
-    <p class="talk-lead">ボタンを押して、いつもの言葉で話してください。</p>
+    <p class="talk-lead">いつもの言葉で。方言のままで大丈夫。</p>
     <p class="talk-progress">本人の言葉で残った工程 <b>${nHeard}</b><small>/${steps.length}</small><span>${nHeard === steps.length ? '全部そろいました' : `あと${steps.length - nHeard}つ`}</span></p>
     <div class="center">
       <button class="mic${SR ? '' : ' off'}" data-mic aria-pressed="${listening}" aria-label="押して話す">${listening ? ICON.stop : ICON.mic}</button>
@@ -484,6 +490,7 @@ function renderTeach(month) {
 
   view.innerHTML = `
     <div class="no-print">
+      ${recSeg('teach')}
       <h1>教えた記録</h1>
       <p class="lead">ベテランと一緒にやった日を残します。ベテラン本人とチームが「はい」を押して確かめます。</p>
       <div class="month">
@@ -662,7 +669,7 @@ function route() {
   if (name !== 'map') leaveMap();
   document.body.classList.remove('has-cta');
   // タブのない画面は、つながっているタブを光らせる
-  const parent = { log: 'map', report: 'map', watch: 'team', town: 'team', impact: 'team' }[name];
+  const parent = { teach: 'log', report: 'map', watch: 'team', town: 'team', impact: 'team', risk: 'team', cards: 'team' }[name];
   const tab = TABS.some((t) => t.id === name) ? name : parent || 'team';
   renderTabs(tab);
   if (name === 'cards' && arg) renderCard(arg);
@@ -672,7 +679,7 @@ function route() {
   else if (name === 'report') renderReport();
   else if (name === 'watch') renderWatch();
   else if (name === 'impact') renderImpact();
-  else ({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk, map: renderMap }[tab])();
+  else (({ team: renderTeam, risk: renderRisk, cards: renderCards, talk: renderTalk, map: renderMap })[name] || renderTeam)();
   window.scrollTo(0, 0);
 }
 

@@ -34,28 +34,31 @@ export function renderMap() {
   const choices = d.traps.staleHoursChoices.map((h) => `<option value="${h}"${h === staleHours() ? ' selected' : ''}>${h}時間</option>`).join('');
   view.innerHTML = `
     <h1>わなの地図</h1>
-    <p class="lead">わなの点を色で見せます。押すと、担当と「二人で行く」相手と、処理場までの道が出ます。</p>
-    <button class="outline sm" data-go="log" style="margin:-6px 0 12px">${icon('doc')}活動と捕獲の記録・町へ出す一覧</button>
-    <div class="legend" id="legend"></div>
+    <p class="lead">点を押すと、担当と「二人で行く」相手と、処理場までの道が出ます。</p>
+    <section id="signal-card"></section>
     <div class="mapbox"><div id="map" role="region" aria-label="わなの地図"></div><p class="map-msg" id="map-msg">地図を読み込んでいます…</p></div>
-    <div class="sim">
-      <button class="outline" data-sim>${icon('bell')}センサーの知らせを試す（模擬）</button>
-      <label class="auto"><input type="checkbox" data-sim-auto> 30秒ごとに自動で知らせる（模擬）</label>
-    </div>
+    <div class="legend small" id="legend"></div>
     <section id="trap-panel"></section>
     <h2>わなの一覧</h2>
     <div class="tlist" id="trap-list"></div>
     <h2>住民からの知らせ</h2>
     <div id="map-reports"></div>
     <button class="outline wide" data-go="report">${icon('chat')}見かけたら知らせる（住民の方の画面）</button>
-    <button class="outline wide" data-go="log" style="margin-top:12px">${icon('doc')}活動と捕獲の記録・町へ出す一覧</button>
     <label class="stale-set">「しばらく見ていない」の目安（チームで決める）<select data-stale>${choices}</select></label>
     <ul class="notes">
       <li>見回りの決まり（どのくらいの間隔で見るか など）は、チームと県に確認してください。このアプリは決まりを答えません。</li>
       <li>わなの場所はチームの中だけで見ます。町の画面には数だけを出します。</li>
       <li>機器は作っていません。実際には、今あるわなセンサーの知らせを受ける想定です。知らせは LINE でも送れる形を考えています（今は送りません）。</li>
       <li>地図の場所は見本のための仮の位置で、わなの点・処理場・運び出しの道はすべて架空です。道はチームが登録したもので、実在の道路の案内ではありません。</li>
-    </ul>`;
+    </ul>
+    <section class="demo-box">
+      <h3>デモ用（機器は作っていません）</h3>
+      <div class="sim">
+        <button class="outline" data-sim>${icon('bell')}センサーの知らせを試す（模擬）</button>
+        <label class="auto"><input type="checkbox" data-sim-auto> 30秒ごとに自動で知らせる（模擬）</label>
+      </div>
+      <p class="muted" style="margin:6px 0 0">実際には、今あるわなセンサーの知らせを受ける想定です。</p>
+    </section>`;
   refresh();
   loadLeaflet().then(initMap).catch(() => {
     const msg = document.getElementById('map-msg');
@@ -142,7 +145,25 @@ function refresh() {
     drawRoute(list.find((t) => t.id === selected));
   }
   renderPanel(list.find((t) => t.id === selected));
+  renderSignalCard(list);
   renderReports();
+}
+
+// 先頭の「次の一手」：入った知らせがあれば、大きなカード（番号・時刻・担当・二人で・道案内・二人で向かう）
+function renderSignalCard(list) {
+  const el = document.getElementById('signal-card');
+  if (!el) return;
+  const caught = list.filter((t) => stateOf(t) === 'caught').sort((a, b) => String(b.signalAt || '').localeCompare(String(a.signalAt || '')));
+  if (!caught.length) { el.innerHTML = '<p class="okline">' + icon('clipboard') + '今、入った知らせはありません。</p>'; return; }
+  el.innerHTML = caught.map((t) => `
+    <article class="signal-card">
+      <button class="sc-head" data-trap="${esc(t.id)}" aria-label="${t.no}番のわなを地図で見る">${trapHtml(t)}<div><b>${t.no}番に入った</b><span>${t.signalAt ? esc(timeLabel(t.signalAt)) : '知らせあり'}</span></div></button>
+      <div class="pair"><div><span>担当</span><b>${esc(t.owner)}さん</b></div><div><span>二人で</span><b>${esc(t.pair)}さん</b></div></div>
+      <div class="row2">
+        <a class="gbtn" href="${esc(googleMapsDir(t.lat, t.lng))}" target="_blank" rel="noopener">${icon('pin')}<span>道案内（Google マップ）</span></a>
+        ${t.goingAt ? `<p class="going" style="margin:0">${icon('team')}向かっています（${esc(timeLabel(t.goingAt))}）</p>` : `<button class="primary" data-trap-go="${esc(t.id)}">二人で向かう</button>`}
+      </div>
+    </article>`).join('');
 }
 
 // 選んだわなから処理場までの道を、太い線で出す
@@ -260,6 +281,7 @@ function simSignal() {
   lastSimNo = t.no;
   setTrap(t.id, { signal: 'caught', signalAt: new Date().toISOString(), goingAt: null });
   select(t.id, { scroll: false });
+  window.scrollTo({ top: 0, behavior: 'smooth' }); // 先頭のカードに「次の一手」が出る
   toast(`${t.no}番のわなに入った知らせ（模擬）。担当の${t.owner}さんと${t.pair}さんに知らせる想定です（LINE でも送れる形・今は送りません）。`);
 }
 

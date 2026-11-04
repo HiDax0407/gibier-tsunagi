@@ -4,7 +4,7 @@
 // 町に出すのは、チームが確かめて「出す」を押したものだけ。
 // 写真は添付として残すだけで、写真から獣の種類を判定しない。
 import { ICON } from '../icons.js';
-import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag } from '../ui.js';
+import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag, recSeg } from '../ui.js';
 import { logs, addLog, editLog, setPhoto, addReport, traps, markSpoke } from '../model.js';
 import { COLUMNS, DEFAULT_COLUMNS, KINDS, SPECIES, findGaps, logsForMonth, draftTable, draftCsv, fmtDateTime } from '../lib/log.js';
 import { parsePatrol } from '../lib/traps.js';
@@ -17,7 +17,7 @@ let editing = null; // 直している記録の id
 
 // ---------- 活動と捕獲の記録 ----------
 export function renderLog(month) {
-  renderTop({ back: '#/map', here: '活動と捕獲の記録' });
+  renderTop();
   month = /^\d{4}-\d{2}$/.test(month || '') ? month : monthOf(todayStr());
   const list = logsForMonth(logs(), month);
   // 画面では新しい記録を上に（日時のない記録は最後）。町へ出す一覧は日時の順のまま
@@ -46,22 +46,23 @@ export function renderLog(month) {
 
   view.innerHTML = `
     <div class="no-print">
-      <h1>活動と捕獲の記録</h1>
-      <p class="lead">見回り・捕獲・出動を、話す＋写真で一行ずつ残します。月末に、町へ出す一覧の下書きになります。</p>
+      ${recSeg('log')}
+      <h1>記録</h1>
+      <p class="lead">見回り・捕獲・出動を、話す＋写真で一行ずつ。</p>
+      <button class="primary wide" data-log-add>${icon('mic')}記録を足す（話す）</button>
+      <div id="log-form-slot"></div>
+      ${byRec.size ? `<details class="gaps">
+        <summary>${icon('alert')}抜け <b>${byRec.size}件</b><span class="fix">直す ${ICON.next}</span></summary>
+        ${gapHtml}
+        <div id="nuke-ai" data-key="${esc(nukeKey(shown))}"></div>
+        <p class="muted" style="margin:8px 0 0">写真なし（捕獲のとき）・日時なし・獣種や頭数なし・チームの確認待ちは、決まった照らし合わせで出しています。${AI.connected ? '話した言葉と欄の食い違いは Claude が探します（指摘だけ。直すのはチーム）。' : 'Claude をつなぐと、話した言葉と欄の食い違いも探します。'}<span style="margin-left:6px">${aiTag('抜け探し', 'nuke')}</span></p>
+      </details>` : `<p class="okline">${icon('clipboard')}抜けはありません。<div id="nuke-ai" data-key="${esc(nukeKey(shown))}" hidden></div></p>`}
+      <h2>この月の記録</h2>
       <div class="month">
         <button class="mbtn" data-go="log/${shiftMonth(month, -1)}" aria-label="前の月">${ICON.back}</button>
         <b>${esc(monthLabel(month))}</b>
         <button class="mbtn" data-go="log/${shiftMonth(month, 1)}" aria-label="次の月">${ICON.next}</button>
       </div>
-      <section class="gaps">
-        <h3>${icon('alert')}抜けチェック <b>${byRec.size}件</b></h3>
-        ${gapHtml}
-        <div id="nuke-ai" data-key="${esc(nukeKey(shown))}"></div>
-        <p class="muted" style="margin:8px 0 0">写真なし（捕獲のとき）・日時なし・獣種や頭数なし・チームの確認待ちは、決まった照らし合わせで出しています。${AI.connected ? '話した言葉と欄の食い違いは Claude が探します（指摘だけ。直すのはチーム）。' : 'Claude をつなぐと、話した言葉と欄の食い違いも探します。'}<span style="margin-left:6px">${aiTag('抜け探し', 'nuke')}</span></p>
-      </section>
-      <div id="log-form-slot"></div>
-      <button class="outline wide" data-log-add>${icon('mic')}記録を足す（話す）</button>
-      <h2>この月の記録</h2>
       ${recHtml}
       <h2>町へ出す一覧（下書き）</h2>
       <p class="muted" style="margin-top:-6px">チームが確かめて「町へ出す」を押した記録だけが入ります。町の様式に合わせて、列と並びを選べます。</p>

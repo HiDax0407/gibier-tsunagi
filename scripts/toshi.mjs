@@ -38,8 +38,8 @@ try {
   const rowsBefore = await page.locator('.trow').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ')));
   check('0:00 記録は空き', /記録.*空き/.test(rowsBefore.at(-1)), rowsBefore.at(-1));
 
-  // 0:20 止まる役割 → 募集カード「記録」→ お願いする
-  await page.click('#tabs a[href="#/risk"]');
+  // 0:20 チームの先頭の一行「止まる役割」→ 募集カード「記録」→ お願いする
+  await page.click('.stop-line');
   await page.waitForSelector('.stop');
   await page.locator('.stop', { hasText: '記録' }).locator('button').click();
   await page.waitForSelector('.hands');
@@ -55,9 +55,10 @@ try {
   await page.waitForTimeout(300);
   check('0:40 知らせは1番に入る', /1番のわな/.test(await text(page, '.tp-head')));
   check('0:40 担当 岩田・二人で行く 高木', /岩田さん.*高木さん/.test(await text(page, '.pair')));
-  check('0:40 Google マップのボタンがある', (await page.locator('.gbtn').count()) === 2);
-  await page.click('[data-trap-go]');
+  check('0:40 道案内（Google マップ）のボタンがある', (await page.locator('.gbtn').count()) >= 2);
+  await page.locator('[data-trap-go]').first().click();
   await page.waitForTimeout(300);
+  check('0:40 先頭のカード「1番に入った」', /1番に入った/.test(await text(page, '.signal-card')));
   check('0:40 二人で向かう → 向かっています', /向かっています/.test(await text(page, '.going')));
 
   // 1:05 話す
@@ -77,8 +78,10 @@ try {
   await page.waitForTimeout(300);
   check('1:05 答えたら次の聞き返しに変わる', (await text(page, '#q-text')) !== '冷やすのは、どのくらいの早さで？');
 
-  // 1:45 教えた記録
-  await page.click('#tabs a[href="#/teach"]');
+  // 1:45 記録タブ → 教えた記録
+  await page.click('#tabs a[href="#/log"]');
+  await page.waitForSelector('.seg');
+  await page.click('.seg a[href="#/teach"]');
   await page.waitForSelector('.rec');
   check('1:45 今日の記録が一番上（岩田→高木）', /岩田さん.*高木さん/.test(await text(page, '.rec')));
   await page.locator('.rec').first().locator('[data-ok$=":teacherOk"]').click();
@@ -87,11 +90,9 @@ try {
   await page.waitForTimeout(150);
   check('1:45 本人とチームが「はい」', ((await text(page, '.rec')).match(/はい/g) || []).length === 2);
 
-  // 2:10 活動と捕獲の記録
-  await page.click('#tabs a[href="#/map"]');
-  await page.waitForSelector('[data-go="log"]');
-  await page.locator('[data-go="log"]').first().click();
-  await page.waitForSelector('.gaps');
+  // 2:10 記録タブ（先頭に「記録を足す」）
+  await page.click('#tabs a[href="#/log"]');
+  await page.waitForSelector('[data-log-add]');
   await page.click('[data-log-add]');
   await page.waitForSelector('#log-text');
   await page.fill('#log-text', '1番にシカがかかっとった');
@@ -99,7 +100,9 @@ try {
   await page.waitForTimeout(200);
   await page.click('form.logadd button[type=submit]');
   await page.waitForTimeout(400);
-  check('2:10 抜けチェックに「写真なし・頭数なし」', /1番・捕獲 写真なし・頭数なし/.test(await text(page, '.gaps')));
+  await page.locator('details.gaps > summary').click();
+  await page.waitForTimeout(150);
+  check('2:10 抜けに「写真なし・頭数なし」', /1番・捕獲 写真なし・頭数なし/.test(await text(page, '.gaps')));
   await page.locator('.rec.log').first().locator('[data-log-ok]').click();
   await page.waitForTimeout(150);
   await page.locator('.rec.log').first().locator('[data-log-send]').click();

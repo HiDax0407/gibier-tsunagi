@@ -36,6 +36,12 @@ export function renderTop({ back, here } = {}) {
   }
 }
 
+// 記録タブの中の切り替え（活動と捕獲／教えた記録）
+export const recSeg = (cur) => `<div class="seg" role="tablist" aria-label="記録の種類">
+  <a href="#/log" role="tab" ${cur === 'log' ? 'aria-current="page"' : ''}>活動と捕獲</a>
+  <a href="#/teach" role="tab" ${cur === 'teach' ? 'aria-current="page"' : ''}>教えた記録</a>
+</div>`;
+
 // ---------- 日付 ----------
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 const pad = (n) => String(n).padStart(2, '0');

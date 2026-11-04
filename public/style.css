@@ -592,3 +592,33 @@ button.link { padding: 10px 8px; }
   .tabs { left: 50%; right: auto; transform: translateX(-50%); width: 100%; max-width: 720px; }
   #map { height: 560px; max-height: none; }
 }
+
+/* ---------- 11/5 社長指摘：操作が分かる画面（タブ4つ・先頭に次の一手） ---------- */
+.tabs { grid-template-columns: repeat(4, 1fr); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; margin: 0 0 14px; }
+.seg a { min-height: 44px; display: flex; align-items: center; justify-content: center; text-decoration: none; color: var(--sub); font-weight: 700; font-size: 15px; }
+.seg a[aria-current="page"] { background: var(--accent); color: #fff; }
+.stop-line { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 10px; margin: -6px 0 10px; border: 1.5px solid var(--line); border-radius: 12px; text-decoration: none; color: var(--ink); }
+.stop-line .k { display: inline-flex; align-items: center; gap: 4px; font-weight: 800; white-space: nowrap; color: var(--warn); }
+.stop-line .v { flex: 1; font-size: 15px; line-height: 1.4; }
+.stop-line svg { width: 20px; height: 20px; flex: none; color: var(--faint); }
+button.primary.wide { display: block; width: 100%; margin: 0 0 12px; }
+.okline { display: flex; align-items: center; gap: 6px; color: var(--sub); font-size: 15px; margin: 4px 0 14px; }
+details.gaps > summary { display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; color: var(--warn); cursor: pointer; list-style: none; min-height: 44px; padding: 0; }
+details.gaps > summary::-webkit-details-marker { display: none; }
+details.gaps > summary b { font-size: 18px; }
+details.gaps > summary .fix { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; color: var(--accent); font-size: 15px; }
+details.gaps > summary .fix svg { width: 18px; height: 18px; }
+details.gaps[open] > summary { margin-bottom: 8px; }
+.signal-card { border: 2px solid var(--ink); border-radius: 16px; padding: 14px 16px; margin: 0 0 16px; background: #fff; }
+.signal-card .sc-head { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; background: none; padding: 0; margin: 0 0 8px; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.signal-card .sc-head b { display: block; font-size: 22px; font-weight: 800; line-height: 1.2; }
+.signal-card .sc-head span { font-size: 14px; color: var(--sub); }
+.signal-card .row2 { margin-top: 12px; }
+.signal-card .gbtn { min-height: 52px; }
+.signal-card button.primary { min-height: 52px; }
+.legend.small { margin: 10px 0 14px; }
+.legend.small .lg { font-size: 13px; }
+.legend.small .lg b { font-size: 16px; }
+.demo-box { margin-top: 24px; padding: 12px 14px; border: 1.5px dashed var(--line); border-radius: 12px; }
+.demo-box h3 { margin: 0 0 8px; font-size: 15px; color: var(--sub); }
