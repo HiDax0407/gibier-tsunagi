@@ -26,7 +26,9 @@ export const roleIcon = (role) => icon(ROLE_ICON[role] || 'doc');
 export function renderTop({ back, here } = {}) {
   if (back) {
     top.className = 'top line';
-    top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}ジビエつなぎ</a>${here ? `<span class="here">${esc(here)}</span>` : ''}`;
+    // 下の画面にも「大きな字」（高齢の方が使う前提。戻る矢印＋題名の並びはそのまま）
+    top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}ジビエつなぎ</a>${here ? `<span class="here">${esc(here)}</span>` : ''}
+      <button class="zoom" data-zoom aria-pressed="${document.body.classList.contains('big')}">大きな字</button>`;
   } else {
     top.className = 'top';
     top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area">${esc(ctx.data.area.name)}</span>
