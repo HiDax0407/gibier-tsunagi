@@ -125,3 +125,12 @@ export function sampleSpot(trap, n = 1) {
 
 // 精度の言い方（m）
 export const accLabel = (acc) => (Number.isFinite(acc) ? `精度 約${Math.round(acc)}m` : '精度 不明');
+
+// ---------- 知らせに写真と音を添える（現場の方の指摘②） ----------
+// 設置カメラの写真1枚と短い録音を、知らせに付ける形。デモでは見本を順に使う（模擬）。
+// 人か動物かは、写真と音を見て人が確かめる。AI は判定しない（中身を読まない）。
+export function signalMedia(examples = [], n = 0) {
+  if (!examples.length) return null;
+  const e = examples[((n % examples.length) + examples.length) % examples.length];
+  return { photo: e.photo, alt: e.alt, sound: e.sound };
+}

@@ -4,7 +4,7 @@
 // 「二人で行く」相手はチームが決めた組み合わせ。AI は人を選ばない。
 import { ctx, view, esc, icon, renderTop, toast, voiceField, agoLabel, timeLabel, loadLeaflet, store } from '../ui.js';
 import { traps, setTrap, staleHours, addLog, addTeach, markSpoke, reports, placeTrap } from '../model.js';
-import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir, sampleSpot, accLabel } from '../lib/traps.js';
+import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir, sampleSpot, accLabel, signalMedia } from '../lib/traps.js';
 import { splitHealth } from '../lib/watch.js';
 
 let map = null;         // Leaflet の地図
@@ -13,12 +13,15 @@ let routeLine = null;   // 選んだわなから処理場までの道
 let selected = null;    // 選んでいるわな
 let autoTimer = null;   // 模擬の知らせ（自動）
 let lastSimNo = 0;
+let simCount = 0;      // 模擬の知らせの回数（添える写真の見本を順に替える）
+let sound = null;      // 再生中の音
 
 const now = () => Date.now();
 const stateOf = (t) => trapState(t, now(), staleHours());
 const trapHtml = (t, cls = '') => `<span class="trap s-${stateOf(t)} ${cls}">${t.no}</span>`;
 
 export function leaveMap() {
+  try { sound?.pause(); } catch { /* 止まっている */ }
   clearInterval(autoTimer);
   autoTimer = null;
   // 地図が動いている最中（寄る動作など）に離れても落ちないよう、止めてから消す
@@ -158,12 +161,38 @@ function renderSignalCard(list) {
   el.innerHTML = caught.map((t) => `
     <article class="signal-card">
       <button class="sc-head" data-trap="${esc(t.id)}" aria-label="${t.no}番のわなを地図で見る">${trapHtml(t)}<div><b>${t.no}番に入った</b><span>${t.signalAt ? esc(timeLabel(t.signalAt)) : '知らせあり'}</span></div></button>
+      ${mediaHtml(t)}
       <div class="pair"><div><span>担当</span><b>${esc(t.owner)}さん</b></div><div><span>二人で</span><b>${esc(t.pair)}さん</b></div></div>
       <div class="row2">
-        <a class="gbtn" href="${esc(googleMapsDir(t.lat, t.lng))}" target="_blank" rel="noopener">${icon('pin')}<span>道案内（Google マップ）</span></a>
+        <a class="gbtn" href="${esc(googleMapsDir(t.lat, t.lng))}" target="_blank" rel="noopener">${icon('pin')}<span><small>Google マップで</small>道案内</span></a>
         ${t.goingAt ? `<p class="going" style="margin:0">${icon('team')}向かっています（${esc(timeLabel(t.goingAt))}）</p>` : `<button class="primary" data-trap-go="${esc(t.id)}">二人で向かう</button>`}
       </div>
     </article>`).join('');
+}
+
+// 知らせに添えた写真と音（現場の方の指摘②）。人か動物かは人が見て確かめる
+function mediaHtml(t) {
+  const m = t.media;
+  if (!m) return '';
+  return `
+      <div class="media">
+        <img src="${esc(m.photo)}" alt="${esc(m.alt || '設置カメラの写真')}" loading="lazy">
+        <div class="md-side">
+          <span class="md-k">設置カメラの写真と音</span>
+          ${m.sound ? `<button class="outline sm" data-sound="${esc(m.sound)}">${icon('speaker')}音を聞く（4秒）</button>` : ''}
+          <p class="md-note">人か動物かは、写真と音を見て人が確かめます。AI は判定しません。</p>
+        </div>
+      </div>
+      <p class="muted" style="margin:0 0 10px">デモの写真は AI で生成した架空の場面、音は風と枝の音を合成した模擬です。</p>`;
+}
+
+function playSound(src, btn) {
+  try { sound?.pause(); } catch { /* 止まっている */ }
+  if (btn.getAttribute('aria-pressed') === 'true') { btn.setAttribute('aria-pressed', 'false'); return; }
+  sound = new Audio(src);
+  btn.setAttribute('aria-pressed', 'true');
+  sound.onended = sound.onerror = () => btn.setAttribute('aria-pressed', 'false');
+  sound.play().catch(() => btn.setAttribute('aria-pressed', 'false'));
 }
 
 // 選んだわなから処理場までの道を、太い線で出す
@@ -313,7 +342,7 @@ function savePatrol(form) {
     count: caught ? Number(fd.get('count')) || null : null,
     text: said.kept,
   });
-  setTrap(t.id, { signal: null, signalAt: null, goingAt: null, lastChecked: at });
+  setTrap(t.id, { signal: null, signalAt: null, goingAt: null, media: null, lastChecked: at });
   markSpoke(by);
   selected = t.id;
   refresh();
@@ -324,7 +353,8 @@ function simSignal() {
   const t = nextSignalTrap(traps(), lastSimNo);
   if (!t) return;
   lastSimNo = t.no;
-  setTrap(t.id, { signal: 'caught', signalAt: new Date().toISOString(), goingAt: null });
+  // 設置カメラの写真1枚と短い録音を添える（見本を順に・模擬）
+  setTrap(t.id, { signal: 'caught', signalAt: new Date().toISOString(), goingAt: null, media: signalMedia(ctx.data.traps.cameraExamples, simCount++) });
   select(t.id, { scroll: false });
   window.scrollTo({ top: 0, behavior: 'smooth' }); // 先頭のカードに「次の一手」が出る
   toast(`${t.no}番のわなに入った知らせ（模擬）。担当の${t.owner}さんと${t.pair}さんに知らせる想定です（LINE でも送れる形・今は送りません）。`);
@@ -352,6 +382,8 @@ export function mapClick(e) {
   const tr = e.target.closest('[data-trap]');
   if (tr && tr.tagName === 'BUTTON') { select(tr.dataset.trap); return true; }
   if (e.target.closest('[data-sim]')) { simSignal(); return true; }
+  const snd = e.target.closest('[data-sound]');
+  if (snd) { playSound(snd.dataset.sound, snd); return true; }
   const pl = e.target.closest('[data-place]');
   if (pl) { placeHere(pl.dataset.place); return true; }
   const ps = e.target.closest('[data-place-sample]');

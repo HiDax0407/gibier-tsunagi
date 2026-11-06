@@ -59,6 +59,13 @@ try {
   check('0:40 知らせは1番に入る', /1番のわな/.test(await text(page, '.tp-head')));
   check('0:40 担当 岩田・二人で行く 高木', /岩田さん.*高木さん/.test(await text(page, '.pair')));
   check('0:40 道案内（Google マップ）のボタンがある', (await page.locator('.gbtn').count()) >= 2);
+  // 現場の方の指摘②：知らせに設置カメラの写真と音。人か動物かは人が確かめる
+  check('0:40 知らせに写真と「音を聞く」', (await page.locator('.signal-card .media img').count()) === 1 && (await page.locator('.signal-card [data-sound]').count()) === 1);
+  check('0:40 「人か動物かは…人が確かめます。AI は判定しません」', /人が確かめます。AI は判定しません/.test(await text(page, '.signal-card')));
+  // 現場の方の指摘①：わなの位置（位置が取れない端末では見本の位置）
+  await page.locator('[data-place-sample]').first().click();
+  await page.waitForTimeout(200);
+  check('0:40 わなの位置を記録できる（見本の位置）', /見本の位置（架空）/.test(await text(page, '.placed')));
   await page.locator('[data-trap-go]').first().click();
   await page.waitForTimeout(300);
   check('0:40 先頭のカード「1番に入った」', /1番に入った/.test(await text(page, '.signal-card')));

@@ -22,6 +22,7 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.wav': 'audio/wav',
 };
 
 function sendJson(res, status, body) {

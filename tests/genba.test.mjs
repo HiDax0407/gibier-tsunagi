@@ -28,3 +28,20 @@ test('見本の位置は架空で、いつも同じ。もとの位置の近く�
   assert.equal(accLabel(7.6), '精度 約8m');
   assert.equal(accLabel(null), '精度 不明');
 });
+
+// ---------- 指摘② 知らせに写真と音 ----------
+import { signalMedia } from '../public/lib/traps.js';
+import { existsSync } from 'node:fs';
+test('知らせに添える写真と音の見本は、順に使う。ファイルがある', () => {
+  const ex = team.traps.cameraExamples;
+  assert.ok(ex.length >= 2);
+  assert.equal(signalMedia(ex, 0).photo, ex[0].photo);
+  assert.equal(signalMedia(ex, 1).photo, ex[1].photo);
+  assert.equal(signalMedia(ex, 2).photo, ex[0].photo);
+  assert.equal(signalMedia([], 0), null);
+  for (const e of ex) {
+    assert.ok(existsSync(new URL(`../public${e.photo}`, import.meta.url)), e.photo);
+    assert.ok(existsSync(new URL(`../public${e.sound}`, import.meta.url)), e.sound);
+    assert.match(e.alt, /架空/);
+  }
+});

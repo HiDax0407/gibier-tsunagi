@@ -97,6 +97,7 @@ export function buildTeam({
       list: traps.traps,
       facility: traps.facility || null,
       road: traps.road || [],
+      cameraExamples: traps.camera_examples || [],
     },
     homeDistrict: 'kitazawa',
     // 活動と捕獲の記録・住民の通報

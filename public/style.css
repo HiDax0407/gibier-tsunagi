@@ -659,3 +659,14 @@ details.gaps[open] > summary { margin-bottom: 8px; }
 .placed .pl-head { display: flex; align-items: center; gap: 6px; }
 .placed .pl-head svg { width: 20px; height: 20px; }
 .placed .pl-state { margin: 4px 0 10px; font-size: 15px; }
+
+/* 知らせに添えた写真と音（現場の方の指摘②） */
+.signal-card .media { margin: 12px 0 8px; }
+.signal-card .media img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; display: block; }
+.signal-card .md-side { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; margin-top: 10px; }
+.signal-card .md-k { display: none; }
+.signal-card .md-note { margin: 0; font-size: 14px; line-height: 1.5; }
+.signal-card [data-sound][aria-pressed="true"] { background: var(--ink); color: #fff; }
+.signal-card .row2 > * { min-width: 0; }
+.signal-card .row2 .primary { white-space: nowrap; }
+.signal-card .row2 .gbtn span { white-space: normal; }
