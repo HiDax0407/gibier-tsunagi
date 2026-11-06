@@ -6,10 +6,14 @@ import { ctx, view, esc, icon, renderTop, toast, voiceField, agoLabel, timeLabel
 import { traps, setTrap, staleHours, addLog, addTeach, markSpoke, reports, placeTrap } from '../model.js';
 import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir, sampleSpot, accLabel, signalMedia } from '../lib/traps.js';
 import { splitHealth } from '../lib/watch.js';
+import { candidates, historyDots, windowMonths } from '../lib/candidates.js';
+import { monthOf, monthLabel } from '../lib/teach.js';
+import { todayStr } from '../ui.js';
 
 let map = null;         // Leaflet の地図
 let markers = {};       // わなの id → 印
 let routeLine = null;   // 選んだわなから処理場までの道
+let histLayer = null;   // 過去の捕獲・目撃の点と候補（重ねるときだけ）
 let selected = null;    // 選んでいるわな
 let autoTimer = null;   // 模擬の知らせ（自動）
 let lastSimNo = 0;
@@ -28,6 +32,7 @@ export function leaveMap() {
   if (map) { try { map.stop(); map.remove(); } catch { /* もう消えている */ } map = null; }
   markers = {};
   routeLine = null;
+  histLayer = null;
 }
 
 export function renderMap() {
@@ -41,9 +46,12 @@ export function renderMap() {
     <section id="signal-card"></section>
     <div class="mapbox"><div id="map" role="region" aria-label="わなの地図"></div><p class="map-msg" id="map-msg">地図を読み込んでいます…</p></div>
     <div class="legend small" id="legend"></div>
+    <div class="legend small" id="hist-legend"${showHist() ? '' : ' hidden'}><span class="lg"><i class="hdot c"></i>過去の捕獲</span><span class="lg"><i class="hdot s"></i>住民の目撃</span><span class="lg">古い月ほど薄い</span></div>
     <section id="trap-panel"></section>
     <h2>わなの一覧</h2>
     <div class="tlist" id="trap-list"></div>
+    <h2>過去の捕獲・目撃から見る候補</h2>
+    <section id="cand"></section>
     <h2>住民からの知らせ</h2>
     <div id="map-reports"></div>
     <button class="outline wide" data-go="report">${icon('chat')}見かけたら知らせる（住民の方の画面）</button>
@@ -101,6 +109,7 @@ function initMap(L) {
       .addTo(map)
       .on('click', () => select(t.id));
   }
+  drawHistory();
   // 住民の知らせは、家の場所ではなく地区に置く（地区の真ん中あたり）
   const mine = reports().filter((r) => r.district === ctx.data.homeDistrict && !r.seen);
   mine.forEach((r, i) => {
@@ -149,7 +158,53 @@ function refresh() {
   }
   renderPanel(list.find((t) => t.id === selected));
   renderSignalCard(list);
+  renderCand();
   renderReports();
+}
+
+// ---------- 過去の捕獲・目撃から見る候補（現場の方の指摘③） ----------
+// 予測はしない。直近の件数を数えて多い所を3つ並べるだけ。設置の可否は県・町の決まりとチームが確認する
+const thisMonth = () => monthOf(todayStr());
+const showHist = () => store.get('showHistory', false);
+function renderCand() {
+  const el = document.getElementById('cand');
+  if (!el) return;
+  const h = ctx.data.history;
+  const w = windowMonths(thisMonth());
+  const list = candidates(h, thisMonth(), { traps: traps() });
+  const range = `${monthLabel(w.from).replace(/^\d+年/, '')}〜${monthLabel(w.to).replace(/^\d+年/, '')}`;
+  el.innerHTML = `
+    <p class="muted" style="margin-top:-6px">過去6か月の捕獲地点と、住民の知らせ（目撃）を地図に重ねて見ます。${esc(range)}に捕獲と目撃が多かった場所を、多い順に3つ並べます（件数を数えるだけで、獣の動きを予測するものではありません）。</p>
+    <label class="auto hist-toggle"><input type="checkbox" data-hist${showHist() ? ' checked' : ''}> 地図に過去6か月の捕獲と目撃を重ねる</label>
+    <ol class="cand-list">${list.map((c, i) => `
+      <li><button class="ti" data-cand="${i}"><span class="cand-no">候${i + 1}</span><span><b>${c.near ? `${c.near.no}番のわなから 約${c.near.m}m` : '地区の中'}</b><small>${esc(range)}：捕獲 ${c.catches}件・目撃 ${c.sightings}件</small></span></button></li>`).join('') || '<li class="muted">数えられる記録がまだありません。</li>'}</ol>
+    <p class="check-note">設置してよいか（道路や人家からの距離・許可の区域など）は、県・町の決まりとチームが確認します。このアプリは決まりを答えません。地点と件数はすべて架空のデモです。</p>`;
+}
+
+function drawHistory() {
+  if (!map || !window.L) return;
+  histLayer?.remove();
+  histLayer = null;
+  if (!showHist()) return;
+  const L = window.L;
+  const g = L.layerGroup();
+  for (const d of historyDots(ctx.data.history, thisMonth())) {
+    L.circleMarker([d.lat, d.lng], d.kind === 'catch'
+      ? { radius: 6, color: '#fff', weight: 1.5, fillColor: '#161616', fillOpacity: d.opacity, opacity: d.opacity, interactive: false }
+      : { radius: 6, color: '#161616', weight: 2, fill: false, opacity: d.opacity, interactive: false }).addTo(g);
+  }
+  candidates(ctx.data.history, thisMonth(), { traps: traps() }).forEach((c, i) => {
+    L.marker([c.lat, c.lng], { icon: L.divIcon({ className: '', html: `<span class="cand-mark">候${i + 1}</span>`, iconSize: [40, 26], iconAnchor: [20, 13] }), interactive: false }).addTo(g);
+  });
+  histLayer = g.addTo(map);
+}
+function setHist(on) {
+  store.set('showHistory', on);
+  drawHistory();
+  const leg = document.getElementById('hist-legend');
+  if (leg) leg.hidden = !on;
+  const box = document.querySelector('[data-hist]');
+  if (box) box.checked = on;
 }
 
 // 先頭の「次の一手」：入った知らせがあれば、大きなカード（番号・時刻・担当・二人で・道案内・二人で向かう）
@@ -382,6 +437,16 @@ export function mapClick(e) {
   const tr = e.target.closest('[data-trap]');
   if (tr && tr.tagName === 'BUTTON') { select(tr.dataset.trap); return true; }
   if (e.target.closest('[data-sim]')) { simSignal(); return true; }
+  const cb = e.target.closest('[data-cand]');
+  if (cb) {
+    const c = candidates(ctx.data.history, thisMonth(), { traps: traps() })[Number(cb.dataset.cand)];
+    if (c && map) {
+      if (!showHist()) setHist(true);
+      map.setView([c.lat, c.lng], 16, { animate: false });
+      document.getElementById('map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return true;
+  }
   const snd = e.target.closest('[data-sound]');
   if (snd) { playSound(snd.dataset.sound, snd); return true; }
   const pl = e.target.closest('[data-place]');
@@ -410,6 +475,10 @@ export function mapChange(e) {
     clearInterval(autoTimer);
     autoTimer = e.target.checked ? setInterval(simSignal, 30000) : null;
     if (e.target.checked) simSignal();
+    return true;
+  }
+  if (e.target.matches('[data-hist]')) {
+    setHist(e.target.checked);
     return true;
   }
   if (e.target.matches('[data-stale]')) {

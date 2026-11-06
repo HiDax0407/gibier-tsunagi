@@ -670,3 +670,12 @@ details.gaps[open] > summary { margin-bottom: 8px; }
 .signal-card .row2 > * { min-width: 0; }
 .signal-card .row2 .primary { white-space: nowrap; }
 .signal-card .row2 .gbtn span { white-space: normal; }
+
+/* 過去の捕獲・目撃から見る候補（現場の方の指摘③） */
+.hist-toggle { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
+.cand-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cand-no, .cand-mark { display: inline-grid; place-items: center; min-width: 40px; height: 26px; padding: 0 6px; border-radius: 6px; background: #fff; border: 2px solid var(--ink); font-size: 14px; font-weight: 800; color: var(--ink); }
+.cand-mark { box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.hdot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.hdot.c { background: #161616; }
+.hdot.s { border: 2px solid #161616; box-sizing: border-box; }

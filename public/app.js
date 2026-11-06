@@ -698,7 +698,7 @@ function townCsv(month) {
 }
 
 // ---------- 切り替え ----------
-const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos'];
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos', 'showHistory'];
 function clearLocal() {
   for (const k of LOCAL_KEYS) {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }

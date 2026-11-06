@@ -18,7 +18,8 @@ export function loadRaw() {
   const impact = JSON.parse(readFileSync(join(root, 'data/impact.json'), 'utf8'));
   const applications = JSON.parse(readFileSync(join(root, 'data/applications.json'), 'utf8'));
   const townRules = JSON.parse(readFileSync(join(root, 'data/town_rules.json'), 'utf8'));
-  return { prepared, roles, teach, town, traps, activity, watch, impact, applications, townRules };
+  const history = JSON.parse(readFileSync(join(root, 'data/history.json'), 'utf8'));
+  return { prepared, roles, teach, town, traps, activity, watch, impact, applications, townRules, history };
 }
 
 import { coverage, stopRisks } from '../public/lib/team-rows.js';
@@ -38,6 +39,7 @@ export function buildTeam({
   impact = { months: [], deer: [], boar: [], damage: [], patrol: [], two_or_more: [] },
   applications = { applications: [] },
   townRules = { required: [], deadlines: {}, return_reasons: [] },
+  history = { catches: [], sightings: [] },
 }) {
   const rows = prepared.current_roles.map((r) => {
     const meta = roles.roles[r.role] || {};
@@ -109,6 +111,8 @@ export function buildTeam({
     watch: watch.people.map((p) => ({ name: p.name, spokeDaysAgo: p.spokeDaysAgo, afterDays: p.afterDays, notify: p.notify })),
     // 町とのやりとり（月ごとの申請）・町が決めた必要項目と目安・免許の期限（架空・本人申告）
     applications: applications.applications,
+    // 過去6か月の捕獲地点と目撃（架空・北沢地区の中だけ）。設置の候補を数えるのに使う
+    history: { months: history.months || [], catches: history.catches || [], sightings: history.sightings || [] },
     townRules: { required: townRules.required, deadlines: townRules.deadlines, returnReasons: townRules.return_reasons },
     licenses: roles.licenses || [],
   };

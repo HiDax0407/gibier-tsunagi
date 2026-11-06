@@ -66,6 +66,9 @@ try {
   await page.locator('[data-place-sample]').first().click();
   await page.waitForTimeout(200);
   check('0:40 わなの位置を記録できる（見本の位置）', /見本の位置（架空）/.test(await text(page, '.placed')));
+  // 現場の方の指摘③：過去の捕獲・目撃から見る候補（件数つき・設置の可否は県・町とチーム）
+  check('0:40 候補が3つ（捕獲と目撃の件数つき）', (await page.locator('.cand-list li').count()) === 3 && /捕獲 \d+件・目撃 \d+件/.test(await text(page, '.cand-list')));
+  check('0:40 候補に「設置の可否は県・町の決まりとチームが確認」', /県・町の決まりとチームが確認/.test(await text(page, '#cand')));
   await page.locator('[data-trap-go]').first().click();
   await page.waitForTimeout(300);
   check('0:40 先頭のカード「1番に入った」', /1番に入った/.test(await text(page, '.signal-card')));

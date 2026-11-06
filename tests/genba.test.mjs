@@ -45,3 +45,29 @@ test('知らせに添える写真と音の見本は、順に使う。ファイ�
     assert.match(e.alt, /架空/);
   }
 });
+
+// ---------- 指摘③ 過去の捕獲・目撃から見る候補 ----------
+import { candidates, historyDots, windowMonths } from '../public/lib/candidates.js';
+test('候補は、直近（8月〜11月）の捕獲と目撃が多い所を3つ。根拠の件数と近いわなを付ける', () => {
+  assert.deepEqual(windowMonths('2026-11'), { from: '2026-08', to: '2026-11' });
+  const list = candidates(team.history, '2026-11', { traps: team.traps.list });
+  assert.equal(list.length, 3);
+  for (let i = 1; i < list.length; i++) assert.ok(list[i - 1].total >= list[i].total);
+  for (const c of list) {
+    assert.equal(c.total, c.catches + c.sightings);
+    assert.ok(Number.isInteger(c.near.no) && c.near.m >= 0);
+    // 返すのは件数と場所だけ（予測の値・点数は持たない）
+    assert.deepEqual(Object.keys(c).sort(), ['catches', 'key', 'lat', 'lng', 'near', 'sightings', 'total']);
+  }
+  // 前は多かった南の林道（5〜6月）は、直近の候補に入らない
+  assert.ok(list.every((c) => c.lat > 35.2));
+});
+
+test('過去の点は北沢地区の中だけ。古い月ほど薄い', () => {
+  const dots = historyDots(team.history, '2026-11');
+  assert.equal(dots.length, team.history.catches.length + team.history.sightings.length);
+  const old = dots.find((d) => d.month === '2026-05');
+  const recent = dots.find((d) => d.month === '2026-10');
+  assert.ok(old.opacity < recent.opacity);
+  for (const d of dots) assert.ok(d.lat > 35.19 && d.lat < 35.22 && d.lng > 133.6 && d.lng < 133.64);
+});
