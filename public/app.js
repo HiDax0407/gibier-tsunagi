@@ -8,7 +8,7 @@ import { districtTotals, fmtDateTime } from './lib/log.js';
 import { splitHealth } from './lib/watch.js';
 import { stepCoverage, nextQuestion, splitTejun, stepSentences } from './lib/kikikata.js';
 import { toCsvText } from './lib/csv.js';
-import { logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
+import { flushTrapPos, logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
 import { SCOPES, scopeOf, scopeLabel, teamTalks, talksCsv } from './lib/talks.js';
 import { STATES, WHO, stateOf, sinceOf, nextOf, lastReturn, daysSince, act, expiringLicenses } from './lib/applications.js';
 import { applications, saveApplication } from './model.js';
@@ -698,7 +698,7 @@ function townCsv(month) {
 }
 
 // ---------- 切り替え ----------
-const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene'];
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos'];
 function clearLocal() {
   for (const k of LOCAL_KEYS) {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
@@ -978,7 +978,12 @@ function showOffline() {
     document.body.insertBefore(el, document.getElementById('view'));
   }
 }
-window.addEventListener('online', showOffline);
+window.addEventListener('online', () => {
+  showOffline();
+  // 電波がない所で残したわなの位置を、つながったら送る
+  const n = flushTrapPos();
+  if (n) { toast(`電波がつながったので、わなの位置（${n}件）を送りました。`); if (location.hash.startsWith('#/map')) route(); }
+});
 window.addEventListener('offline', showOffline);
 showOffline();
 

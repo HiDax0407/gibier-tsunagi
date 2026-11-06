@@ -23,7 +23,9 @@ const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? '✓' : '✖'} ${name}${detail ? `　${detail}` : ''}`); };
 const text = async (page, sel) => (await page.locator(sel).first().innerText()).replace(/\s+/g, ' ').trim();
 
-const browser = await chromium.launch(existsSync('/opt/pw-browsers/chromium') ? { executablePath: '/opt/pw-browsers/chromium' } : {});
+// 手元の Chrome を使うときは CHROME_PATH に場所を入れる（例：Mac の Google Chrome）
+const chrome = process.env.CHROME_PATH || (existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : '');
+const browser = await chromium.launch(chrome ? { executablePath: chrome } : {});
 const page = await browser.newPage({ viewport: { width: 375, height: 812 }, locale: 'ja-JP' });
 page.on('dialog', (d) => d.accept());
 const errors = [];

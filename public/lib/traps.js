@@ -105,3 +105,23 @@ export function googleMapsDir(lat, lng) {
   const n = (v) => Number(v).toFixed(6);
   return `https://www.google.com/maps/dir/?api=1&destination=${n(lat)},${n(lng)}&travelmode=driving`;
 }
+
+// ---------- わなの位置を記録する（現場の方の指摘①：わなの場所が分かるように） ----------
+// 「ここに置いた」で端末の位置（緯度・経度・精度 m）を残す。位置が取れない端末では、見本の位置（架空）を使う。
+// 発信機つきのわな（市販の機器）があれば、知らせに位置が付く想定。機器は作らない。
+export function applyPlaced(list, placed = {}) {
+  return list.map((t) => {
+    const p = placed[t.id];
+    if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return t;
+    return { ...t, lat: p.lat, lng: p.lng, placed: p };
+  });
+}
+
+// 見本の位置：もとの位置から、決まった少しだけずらす（架空・いつも同じ）
+export function sampleSpot(trap, n = 1) {
+  const k = [-3, -2, -1, 1, 2, 3][(trap.no * 37 + n * 11) % 6]; // 0 にはしない（必ず少し動く）
+  return { lat: +(trap.lat + k * 0.00018).toFixed(6), lng: +(trap.lng - k * 0.00022).toFixed(6), acc: null, source: 'sample' };
+}
+
+// 精度の言い方（m）
+export const accLabel = (acc) => (Number.isFinite(acc) ? `精度 約${Math.round(acc)}m` : '精度 不明');

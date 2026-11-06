@@ -3,8 +3,8 @@
 // 機器は作らない。センサーの知らせは、ボタンとタイマーで模擬する。実機は既存のわなセンサーの知らせを受ける想定。
 // 「二人で行く」相手はチームが決めた組み合わせ。AI は人を選ばない。
 import { ctx, view, esc, icon, renderTop, toast, voiceField, agoLabel, timeLabel, loadLeaflet, store } from '../ui.js';
-import { traps, setTrap, staleHours, addLog, addTeach, markSpoke, reports } from '../model.js';
-import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir } from '../lib/traps.js';
+import { traps, setTrap, staleHours, addLog, addTeach, markSpoke, reports, placeTrap } from '../model.js';
+import { STATE_LABEL, STATE_ORDER, trapState, countStates, nextSignalTrap, parsePatrol, routeFor, routeKm, googleMapsDir, sampleSpot, accLabel } from '../lib/traps.js';
 import { splitHealth } from '../lib/watch.js';
 
 let map = null;         // Leaflet の地図
@@ -141,7 +141,7 @@ function refresh() {
   document.getElementById('trap-list').innerHTML = list.map((t) => `
     <button class="ti${t.id === selected ? ' on' : ''}" data-trap="${esc(t.id)}">${trapHtml(t)}<span><b>${STATE_LABEL[stateOf(t)]}</b><small>${esc(agoLabel(t.lastChecked))}に見た・担当 ${esc(t.owner)}さん</small></span></button>`).join('');
   if (map && window.L) {
-    for (const t of list) markers[t.id]?.setIcon(trapIcon(window.L, t));
+    for (const t of list) { markers[t.id]?.setIcon(trapIcon(window.L, t)); markers[t.id]?.setLatLng([t.lat, t.lng]); }
     drawRoute(list.find((t) => t.id === selected));
   }
   renderPanel(list.find((t) => t.id === selected));
@@ -202,6 +202,7 @@ function renderPanel(t) {
       <p class="tp-sub">最後に見た：${esc(agoLabel(t.lastChecked))}${t.signalAt && st === 'caught' ? `　知らせ：${esc(timeLabel(t.signalAt))}` : ''}</p>
       <div class="pair"><div><span>担当</span><b>${esc(t.owner)}さん</b></div><div><span>二人で行く</span><b>${esc(t.pair)}さん</b></div></div>
       <p class="muted" style="margin:6px 0 0">組み合わせはチームが決めたものです。AI は人を選びません。</p>
+      ${placeHtml(t)}
       ${routeText(t)}
       ${st === 'caught' ? (t.goingAt
         ? `<p class="going">${icon('team')}${esc(t.owner)}さんと${esc(t.pair)}さんが向かっています（${esc(timeLabel(t.goingAt))}）</p>`
@@ -216,6 +217,50 @@ function renderPanel(t) {
       </form>
     </div>`;
   showParse();
+}
+
+// わなの位置：「ここに置いた」で端末の位置を残す（現場の方の指摘①）
+let placeMsg = null; // { id, text } 位置が取れなかったときの一言
+function placeHtml(t) {
+  const p = t.placed;
+  const when = p ? timeLabel(p.at) : '';
+  const state = !p ? '<span>まだ記録していません（地図の点はチームが登録した仮の位置）</span>'
+    : `<span>${esc(when)}に記録・${p.source === 'gps' ? `スマホの位置・${esc(accLabel(p.acc))}` : '見本の位置（架空）'}${p.pending ? '・<b class="warn">送り待ち（電波がつながったら送る）</b>' : ''}</span>`;
+  const msg = placeMsg && placeMsg.id === t.id ? `<p class="muted" style="margin:6px 0 0">${esc(placeMsg.text)}</p>` : '';
+  return `
+      <div class="placed">
+        <div class="pl-head">${icon('pin')}<b>わなの位置</b></div>
+        <p class="pl-state">${state}</p>
+        <div class="row2">
+          <button class="outline" data-place="${esc(t.id)}">ここに置いた（今の場所）</button>
+          <button class="outline" data-place-sample="${esc(t.id)}">見本の位置を使う</button>
+        </div>
+        ${msg}
+        <p class="muted" style="margin:6px 0 0">わなの横で押すと、スマホの位置（緯度・経度と精度）を残し、地図の点をそこへ動かします。位置はこの端末とチームの中だけで使い、町や住民には見せません。発信機つきのわな（市販の機器）があれば、知らせに位置が付く想定です。</p>
+      </div>`;
+}
+
+function setPlace(id, pos, text) {
+  const saved = placeTrap(id, pos);
+  placeMsg = null;
+  selected = id;
+  refresh();
+  focusTrap(traps().find((x) => x.id === id));
+  toast(text + (saved.pending ? '電波がないので、この端末に残しました。つながったら送ります。' : ''));
+}
+
+function placeHere(id) {
+  const t = traps().find((x) => x.id === id);
+  if (!t) return;
+  const fail = (why) => { placeMsg = { id, text: `${why}「見本の位置を使う」で、架空の位置を入れられます。` }; refresh(); };
+  if (!('geolocation' in navigator)) { fail('この端末では位置が取れません。'); return; }
+  placeMsg = { id, text: '位置を取っています…' };
+  refresh();
+  navigator.geolocation.getCurrentPosition(
+    (g) => setPlace(id, { lat: +g.coords.latitude.toFixed(6), lng: +g.coords.longitude.toFixed(6), acc: g.coords.accuracy, source: 'gps' }, `${t.no}番の位置を記録しました（${accLabel(g.coords.accuracy)}）。`),
+    () => fail('位置が取れませんでした（許可していない・屋内など）。'),
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
+  );
 }
 
 function renderReports() {
@@ -307,6 +352,14 @@ export function mapClick(e) {
   const tr = e.target.closest('[data-trap]');
   if (tr && tr.tagName === 'BUTTON') { select(tr.dataset.trap); return true; }
   if (e.target.closest('[data-sim]')) { simSignal(); return true; }
+  const pl = e.target.closest('[data-place]');
+  if (pl) { placeHere(pl.dataset.place); return true; }
+  const ps = e.target.closest('[data-place-sample]');
+  if (ps) {
+    const t = traps().find((x) => x.id === ps.dataset.placeSample);
+    if (t) setPlace(t.id, sampleSpot(ctx.data.traps.list.find((x) => x.id === t.id) || t), `${t.no}番に見本の位置（架空）を入れました。`);
+    return true;
+  }
   const go = e.target.closest('[data-trap-go]');
   if (go) { goTwo(go.dataset.trapGo); return true; }
   const seen = e.target.closest('[data-report-seen]');

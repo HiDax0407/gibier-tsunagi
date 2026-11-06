@@ -653,3 +653,9 @@ details.gaps[open] > summary { margin-bottom: 8px; }
 .lic-note small { display: block; color: var(--sub); font-size: 13px; margin-top: 2px; }
 /* 地図の＋−（Leaflet の部品）も 44px に（高齢の方が押せるように。見た目はそのまま） */
 .leaflet-control-zoom a { width: 44px !important; height: 44px !important; line-height: 44px !important; font-size: 22px !important; }
+
+/* わなの位置（現場の方の指摘①） */
+.placed { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 14px 0 0; }
+.placed .pl-head { display: flex; align-items: center; gap: 6px; }
+.placed .pl-head svg { width: 20px; height: 20px; }
+.placed .pl-state { margin: 4px 0 10px; font-size: 15px; }

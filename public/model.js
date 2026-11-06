@@ -1,6 +1,6 @@
 // データのまとめ役：デモデータ（/api/team）に、この端末で足したもの・押したものを重ねる。
 import { ctx, store, todayStr } from './ui.js';
-import { placeTraps } from './lib/traps.js';
+import { placeTraps, applyPlaced } from './lib/traps.js';
 import { surname } from './lib/names.js';
 import { applyDecided, stopRisks } from './lib/team-rows.js';
 import { monthlyApp } from './lib/applications.js';
@@ -37,9 +37,26 @@ export function teamRisks() {
 export function traps() {
   const over = store.get('trapOver', {});
   const sc = scene();
-  return placeTraps(ctx.data.traps.list, OPENED)
+  const list = placeTraps(ctx.data.traps.list, OPENED)
     .map((t) => (sc?.hideSignals ? { ...t, signal: null } : t))
     .map((t) => ({ ...t, ...(over[t.id] || {}) }));
+  return applyPlaced(list, store.get('trapPos', {}));
+}
+// わなの位置（この端末に残す。電波がなければ「送り待ち」にして、つながったら送る）
+export function placeTrap(id, pos) {
+  const all = store.get('trapPos', {});
+  const online = typeof navigator === 'undefined' || navigator.onLine !== false;
+  all[id] = { ...pos, at: new Date().toISOString(), pending: !online };
+  store.set('trapPos', all);
+  return all[id];
+}
+// つながったら、送り待ちの位置を送る（デモではチームの端末と分け合う先がないので、印を替えるだけ）
+export function flushTrapPos() {
+  const all = store.get('trapPos', {});
+  const ids = Object.keys(all).filter((k) => all[k].pending);
+  for (const k of ids) all[k] = { ...all[k], pending: false, sentAt: new Date().toISOString() };
+  if (ids.length) store.set('trapPos', all);
+  return ids.length;
 }
 export function setTrap(id, patch) {
   const over = store.get('trapOver', {});
