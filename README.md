@@ -66,8 +66,8 @@
 | 募集（チームの画面から） | 役割ごとの募集カードと一人前までの道のり（4段）。地域の人が自分で手を挙げ、チームが決める |
 | 記録 › 教えた記録 | 一緒にやった日・工程・相手。ベテラン本人とチームが「はい」で確かめる。月ごとの一覧を印刷・CSV で書き出し |
 | 被害を減らす（チームの画面の下から） | 町と同じ数（捕獲・見回り・住民の知らせ）を、月ごと・地区ごとにグラフと表で見る。チームと町が同じ数を見て話すための画面。グラフの数はすべて架空のデモで、アプリの効果を示すものではない |
-| わな（わなの地図） | 入った知らせがあれば先頭に大きなカード（番号・時刻・担当・二人で・道案内・二人で向かう）。わなの点を色で見せる（入った／しばらく見ていない／空／見回り済み）。押すと担当と「二人で行く」相手と、処理場までの道（チームが登録した運び出しの道・距離と目安の時間）。「Googleマップでわなへ行く」「Googleマップで処理場へ行く」で、いつもの道案内が始まる。見回った人が話すだけで色が変わる。センサーの知らせは模擬 |
-| 記録 › 活動と捕獲 | 先頭に「記録を足す（話す）」。日時・わな・地区・獣種・頭数の一行。抜けは「○件 直す」の一行（写真なし・日時なし・獣種や頭数なし・確認待ち。Claude をつなぐと、話した言葉と欄の食い違いも）。**町とのやりとり**（下の節）。出す一覧（列を町の様式に合わせて選べる・印刷・CSV） |
+| わな（わなの地図） | 入った知らせがあれば先頭に大きなカード（番号・時刻・担当・二人で・道案内・二人で向かう）。わなの点を色で見せる（入った／しばらく見ていない／空／見回り済み）。押すと担当と「二人で行く」相手と、処理場までの道（チームが登録した運び出しの道・距離と目安の時間）。「Googleマップでわなへ行く」「Googleマップで処理場へ行く」で、いつもの道案内が始まる。見回った人が話すだけで色が変わる。センサーの知らせは模擬。知らせには設置カメラの写真と短い録音を添える（人か動物かは人が確かめる）。わなごとに「ここに置いた」で位置を残す。過去6か月の捕獲と目撃を重ねて、件数の多い所を設置の候補として3つ |
+| 記録 › 活動と捕獲 | 先頭に「記録を足す（話す）」。日時・わな・地区・獣種・頭数の一行。抜けは「○件 直す」の一行（写真なし・日時なし・獣種や頭数なし・確認待ち。Claude をつなぐと、話した言葉と欄の食い違いも）。**町に出す写真**（捕獲のとき4枚・捕獲者・日時・場所は自動で付く）を「先に送る」と、町が精算の準備をできる。**町とのやりとり**（下の節）。出す一覧（列を町の様式に合わせて選べる・印刷・CSV） |
 | 見かけたら知らせる（住民の方） | ログインなし・名前なし。話す＋写真で出没・被害を知らせ、地区に置いてチームへ回す |
 | 町の地区一覧（チームの画面の下か `/#/town`） | 町の担当の方向け。**確認待ち**（地区・月・件数・出された日。1件ずつ「確認」か理由を選んで「戻す」、まとめて確認）。地区ごとに「1人だけの役割」「経験が残った工程」「手を挙げた人」「教えた回数」と、シカ・イノシシ・見回り・住民の知らせの数（月ごと／すべての月で切り替え）。県へ上げる数の下書き（月つき・印刷・CSV）。個人名は出さない |
 | 見守り（チームの画面の下から） | 「◯日話していない」ときに、本人が決めた知らせ先（家族・チーム）へ知らせる設定。体調は判断しない |
@@ -152,13 +152,16 @@
 - **わなの場所を町や住民に見せない**：わなの地図はチームの中だけ
 - 処理の場面を絵や写真で見せない
 
-## 現場の方に見てもらって直したこと
+## 現場の方の指摘で直したこと（11/6）
 
-現役の猟師さんに試作の画面を見ていただき、ご意見をうかがっています（お返事待ち）。いただいたご意見と、それを受けて直したところ（コミット）を、ご本人の了承の範囲でここに書きます。
+現役の猟師さんに試作の画面を見ていただき、4つの指摘をいただきました（お名前は了承をいただいてから）。それを受けて直したところです。
 
-| ご意見 | 直したこと | コミット |
+| 現場の方の指摘 | 直したこと | コミット |
 |---|---|---|
-| （お返事のあとに書きます） | | |
+| ① わなに GPS を付けて、場所が分かるように | わなごとに「ここに置いた」ボタン。スマホの位置（緯度・経度・精度 m）を残し、地図の点をそこへ動かす。位置が取れない端末では「見本の位置を使う」（架空）。電波がない山では端末に残して「送り待ち」、つながったら送る。発信機つきのわな（市販の LPWA・衛星の機器）があれば、知らせに位置が付く想定（機器は作らない） | `5013e26` |
+| ② かかったら、人か動物かをカメラで自動撮影、または声の録音 | わなの知らせに、設置カメラの写真1枚と短い録音を添える形。先頭の「◯番に入った」カードに写真と「音を聞く」。画面に「人か動物かは、写真と音を見て人が確かめます。AI は判定しません」。デモの写真は AI で生成した架空の場面、音は風と枝の音を合成した模擬 | `86988e7` |
+| ③ 過去に取れた所から、設置の推奨箇所を | 「予測」はしない。過去6か月の捕獲地点と住民の目撃を地図に月別の薄い点で重ね、直近（8月〜今月）に捕獲と目撃が多い所を「候補」として3つ並べる（件数と近いわなを横に）。設置の可否（道路・人家からの距離・許可の区域）は県・町の決まりとチームが確認 | `da97a9d` |
+| ④ 駆除のあとの手続きが面倒。先にハンター名と必要な写真を送り、自治体はそれで精算の準備。現物を持参したらすぐ対応 | 捕獲の記録で、町の必要項目（`data/town_rules.json`）どおりの写真4枚（全体・町が指定する部位・場所の札・日付）を撮る。捕獲者・日時・場所は自動で付く。「先に送る」で町へ。町の画面に「精算の準備できた（現物待ち）」→ 現物を持ってきたら町が「現物を確認」→「精算へ」。アプリが見るのは枚数と項目の有無だけで、獣種の判定・金額・対象の判断はしない | `d636a1e` |
 
 ## 試し方
 
@@ -225,6 +228,7 @@ MIT
 - **Trap map**: traps shown as colored dots (caught / not checked for a while / empty / patrolled today) on Leaflet with GSI tiles. Tapping a caught trap shows the assignee and the partner to go with (decided by the team). The patroller just talks and the dot changes. Sensor alerts are simulated; no hardware is built.
 - **Less paperwork for towns**: patrols, catches and dispatches become one line each (date/time, trap, district, species, count) by voice plus a photo; a gap check lists what is missing; a month-end draft list with town-specific columns is printed or exported. Only records the team confirmed and chose to send go to the town. The app never judges subsidy eligibility or amounts, and never identifies species from photos.
 - **Purpose — reducing crop damage**: a visual screen shows the trend of residents' damage reports, monthly catches (deer/boar), patrols, stages with two or more people, and per-district catches (hand-drawn SVG charts, tap for values, table view). The app does not claim the change is caused by the app alone. Trap and facility panels open Google Maps directions (no API key).
+- **Fixed after feedback from a working hunter (Nov 6)**: (1) record each trap's position with the phone's GPS ("placed here", with accuracy; kept on the device and sent when back in signal); (2) attach a trail-camera photo and a short sound clip to the trap alert — a person checks whether it is a person or an animal, the AI does not judge; (3) show candidate trap spots by counting recent catches and resident sightings (top 3 with counts — not a prediction; whether a trap may be placed there is for the prefecture, town and team to confirm); (4) send the four photos the town requires plus hunter, time and place right after a catch, so the town can prepare settlement and confirm the physical item on arrival. The app only checks that photos and fields are present; it never identifies species or decides amounts or eligibility.
 - **Watch-over**: notifies family or the team (as chosen by the person) after N days without talking. It never judges health, and sentences about health are not stored.
 - **The veteran's words belong to the veteran**: each saved talk carries a scope the speaker sets ("usable within the team" or "still mine only"); "mine only" talks are excluded from team counts and per-stage views; the speaker can delete a talk; CSV exports always carry who said it, when, and the scope. No login, so the scope is a declared consent, not an enforced access control.
 - **Three Claude roles, two models** (`src/ai.mjs`, enabled by an API key in `.env`; without it the app runs on rule-based stand-ins): organizer (Claude Opus 5.5: splits talk into steps/cautions and tags each sentence with a stage, verbatim only), interviewer (Claude Haiku 5.5: exactly one follow-up question), gap finder (Claude Haiku 5.5: mismatches between spoken words and record fields). Every reply is checked before use: no paraphrase, no unknown stage, one question only, no money/subsidy judgement. A small on-screen tag shows the role and model whenever Claude works.
