@@ -113,7 +113,7 @@ export function buildTeam({
     applications: applications.applications,
     // 過去6か月の捕獲地点と目撃（架空・北沢地区の中だけ）。設置の候補を数えるのに使う
     history: { months: history.months || [], catches: history.catches || [], sightings: history.sightings || [] },
-    townRules: { required: townRules.required, deadlines: townRules.deadlines, returnReasons: townRules.return_reasons },
+    townRules: { required: townRules.required, deadlines: townRules.deadlines, returnReasons: townRules.return_reasons, advance: townRules.advance || { photos: [], items: [] } },
     licenses: roles.licenses || [],
   };
 }

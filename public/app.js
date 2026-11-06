@@ -1,7 +1,7 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
-import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi, recSeg } from './ui.js';
+import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi, recSeg, timeLabel } from './ui.js';
 import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 import { districtTotals, fmtDateTime } from './lib/log.js';
@@ -11,10 +11,11 @@ import { toCsvText } from './lib/csv.js';
 import { flushTrapPos, logs, reports, markSpoke, handsFor, teamRows, teamRisks, scene } from './model.js';
 import { SCOPES, scopeOf, scopeLabel, teamTalks, talksCsv } from './lib/talks.js';
 import { STATES, WHO, stateOf, sinceOf, nextOf, lastReturn, daysSince, act, expiringLicenses } from './lib/applications.js';
-import { applications, saveApplication } from './model.js';
+import { applications, saveApplication, advPhotos, advanceOf, saveAdvance } from './model.js';
+import { advanceCheck, advanceState, advanceAct, ADV_STATES } from './lib/advance.js';
 import { surname } from './lib/names.js';
 import { renderMap, leaveMap, mapClick, mapChange, mapSubmit, showParse } from './screens/map.js';
-import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit } from './screens/log.js';
+import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, reportClick, reportSubmit, advShot } from './screens/log.js';
 import { renderWatch, watchClick } from './screens/watch.js';
 import { renderImpact, impactPointer } from './screens/impact.js';
 import { change, monthShort } from './lib/impact.js';
@@ -611,6 +612,7 @@ function renderTown(arg) {
     <p class="kicker">町の担当の方向け</p>
     <h1>${esc(strip(data.town.name))}の<br>地区一覧</h1>
     <p class="lead">地区ごとの数だけを出します。個人名は出しません。</p>
+    ${advTopLine()}
     <div class="month">
       ${month === 'all' ? '<span></span>' : `<button class="mbtn" data-go="town/${shiftMonth(month, -1)}" aria-label="前の月">${ICON.back}</button>`}
       <b>${esc(monthText)}</b>
@@ -675,6 +677,7 @@ function townPendingHtml() {
   const retHtml = returned.map((a) => { const r = lastReturn(a); return card(a, `<p class="ac-return">${icon('alert')}不足：${esc(r?.reason || '')}${r?.note ? `（${esc(r.note)}）` : ''}<small>チームの直しを待っています</small></p>`); }).join('');
   const payHtml = paying.map((a) => card(a, `<button class="outline" data-app-pay="${esc(a.id)}">支払った（完了にする）</button>`)).join('');
   return `
+    ${advanceTownHtml()}
     <h2>確認待ち</h2>
     ${waiting.length > 1 ? `<button class="outline wide" data-app-confirm-all style="margin-bottom:12px">まとめて確認（町が確認中の ${waiting.length}件）</button>` : ''}
     ${waitHtml || '<p class="muted">町が確認中の申請はありません。</p>'}
@@ -682,6 +685,54 @@ function townPendingHtml() {
     ${payHtml ? `<h3 style="margin:14px 0 8px">支払い待ち</h3>${payHtml}` : ''}
     <p class="muted">この町の目安：締め日 ${esc(dl.close || '—')}・確認 ${esc(dl.check || '—')}・支払い ${esc(dl.pay || '—')}（町が決めた目安。表示するだけ）。確認・戻す・支払いは町の人が押します。対象かどうか・金額・許可の可否は、このアプリは判断しません。</p>`;
 }
+// 町側：精算の準備（現場の方の指摘④）。先に届いた写真と項目を照らして「準備できた（現物待ち）」→
+// 猟師さんが現物を持ってきたら「現物を確認」→「精算へ」。押すのは町の人。アプリは枚数と項目の有無だけを見る
+function advanceTownHtml() {
+  const rules = data.townRules.advance || { photos: [] };
+  const names = Object.fromEntries(data.town.districts.map((d) => [d.id, d.name]));
+  const list = logs().filter((r) => advanceOf(r.id).sentAt)
+    .sort((a, b) => String(advanceOf(b.id).sentAt).localeCompare(String(advanceOf(a.id).sentAt)));
+  const cards = list.map((r) => {
+    const photos = advPhotos(r.id);
+    const check = advanceCheck(r, photos, rules);
+    const adv = advanceOf(r.id);
+    const st = advanceState(adv, check);
+    const btn = st === 'ready' ? `<p class="muted" style="margin:8px 0 6px">持ってくるもの：${esc(rules.bring || '現物')}</p><button class="primary wide" data-adv-receive="${esc(r.id)}">現物を確認した</button>`
+      : st === 'received' ? `<button class="primary wide" data-adv-settle="${esc(r.id)}">精算へ回す</button>` : '';
+    return `
+      <article class="app-card adv-town s-${st}">
+        <div class="ac-head"><b>${esc(names[r.district] || r.district || '')}・${r.trapNo ? `${r.trapNo}番・` : ''}${esc(r.kind)}</b><span>先に届いた ${esc(timeLabel(adv.sentAt))}</span></div>
+        <p class="ac-next"><b>${esc(ADV_STATES[st].label)}</b></p>
+        <table class="adv-check"><tbody>
+          <tr><th>捕獲者</th><td>${esc(r.by ? `${r.by}さん` : '—')}</td></tr>
+          <tr><th>日時</th><td>${esc(r.datetime ? timeLabel(r.datetime) : '—')}</td></tr>
+          <tr><th>場所</th><td>${esc(r.trapNo ? `${r.trapNo}番のわな` : '—')}</td></tr>
+          <tr><th>写真</th><td>${check.photos}/${check.of}枚${check.missingPhotos.length ? `（足りない：${check.missingPhotos.map(esc).join('・')}）` : '・そろっています'}</td></tr>
+        </tbody></table>
+        <div class="adv-grid sm">${rules.photos.filter((p) => photos[p.id]).map((p) => advShot(p, photos[p.id], r)).join('')}</div>
+        ${btn}
+        ${adv.receivedAt ? `<p class="muted" style="margin:6px 0 0">現物を確認：${esc(timeLabel(adv.receivedAt))}${adv.settleAt ? `　精算へ：${esc(timeLabel(adv.settleAt))}` : ''}</p>` : ''}
+      </article>`;
+  }).join('');
+  return `
+    <h2 id="adv-town">精算の準備（写真が先に届いたもの）</h2>
+    <p class="muted" style="margin-top:-6px">捕獲のあと、チームが写真${rules.photos.length}枚と捕獲者・日時・場所を先に送ります。そろっていれば「精算の準備できた（現物待ち）」になり、現物を持ってきたらすぐ確認できます。</p>
+    ${cards || '<p class="muted">先に届いた写真はまだありません。</p>'}
+    <p class="muted">アプリが見るのは写真の枚数と項目の有無だけです。獣種の判定・金額・対象かどうかの判断はしません。「現物を確認」「精算へ」は町の人が押します。写真と人名は架空のデモです。</p>`;
+}
+function advTopLine() {
+  const n = logs().filter((r) => { const a = advanceOf(r.id); return a.sentAt && !a.settleAt; }).length;
+  return n ? `<button class="jump-line" data-scroll="adv-town">${icon('clock')}<span>精算の準備（写真が先に届いた） <b>${n}件</b></span>${ICON.next}</button>` : '';
+}
+function doAdv(id, action) {
+  const r = logs().find((x) => x.id === id);
+  if (!r) return;
+  try { saveAdvance(id, advanceAct(advanceOf(id), action, new Date().toISOString(), advanceCheck(r, advPhotos(id), data.townRules.advance))); } catch (err) { toast(err.message); return; }
+  const y = window.scrollY;
+  renderTown(location.hash.split('/')[2]);
+  window.scrollTo(0, y);
+}
+
 function doApp(id, action, extra = {}) {
   const app = applications().find((a) => a.id === id);
   if (!app) return;
@@ -698,7 +749,7 @@ function townCsv(month) {
 }
 
 // ---------- 切り替え ----------
-const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos', 'showHistory'];
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos', 'showHistory', 'advPhotos', 'advance'];
 function clearLocal() {
   for (const k of LOCAL_KEYS) {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
@@ -763,6 +814,12 @@ document.addEventListener('click', (e) => {
   if (tcsv) { townCsv(townMonth(tcsv.dataset.townCsv)); return; }
   const ac = e.target.closest('[data-app-confirm]');
   if (ac) { doApp(ac.dataset.appConfirm, 'confirm'); toast('確認しました。チームの画面にも「確認済み」と出ます。'); return; }
+  const scr = e.target.closest('[data-scroll]');
+  if (scr) { document.getElementById(scr.dataset.scroll)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+  const arc = e.target.closest('[data-adv-receive]');
+  if (arc) { doAdv(arc.dataset.advReceive, 'receive'); toast('現物を確認しました。'); return; }
+  const ase = e.target.closest('[data-adv-settle]');
+  if (ase) { doAdv(ase.dataset.advSettle, 'settle'); toast('精算へ回しました。金額と対象は町の決まりで扱ってください。'); return; }
   const ap = e.target.closest('[data-app-pay]');
   if (ap) { doApp(ap.dataset.appPay, 'pay'); return; }
   if (e.target.closest('[data-app-confirm-all]')) {

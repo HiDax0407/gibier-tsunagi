@@ -152,3 +152,18 @@ export function setWatch(name, patch) {
   local[name] = { ...(local[name] || {}), ...patch };
   store.set('watchSet', local);
 }
+
+// ---------- 精算の準備を先に（現場の方の指摘④）：町に出す写真と「先に送った」印 ----------
+// 写真はこの端末に残す（'sample' は見本の写真・架空）。押すのは人：「先に送る」はチーム、「現物を確認」「精算へ」は町
+export const advPhotos = (id) => store.get('advPhotos', {})[id] || {};
+export function setAdvPhoto(id, slot, data) {
+  const all = store.get('advPhotos', {});
+  all[id] = { ...(all[id] || {}), [slot]: data };
+  return store.set('advPhotos', all);
+}
+export const advanceOf = (id) => store.get('advance', {})[id] || {};
+export function saveAdvance(id, adv) {
+  const all = store.get('advance', {});
+  all[id] = adv;
+  store.set('advance', all);
+}

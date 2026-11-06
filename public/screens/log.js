@@ -4,8 +4,9 @@
 // 町に出すのは、チームが確かめて「出す」を押したものだけ。
 // 写真は添付として残すだけで、写真から獣の種類を判定しない。
 import { ICON } from '../icons.js';
-import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag, recSeg, dayLabel } from '../ui.js';
-import { logs, addLog, editLog, setPhoto, addReport, traps, markSpoke, appFor, saveApplication } from '../model.js';
+import { ctx, view, esc, icon, renderTop, toast, voiceField, timeLabel, localInput, downloadCsv, readPhoto, store, todayStr, AI, askAi, aiTag, recSeg, dayLabel, samplePhoto } from '../ui.js';
+import { logs, addLog, editLog, setPhoto, addReport, traps, markSpoke, appFor, saveApplication, advPhotos, setAdvPhoto, advanceOf, saveAdvance } from '../model.js';
+import { advanceCheck, advanceState, advanceAct, ADV_STATES } from '../lib/advance.js';
 import { STATES, WHO, stateOf, sinceOf, nextOf, lastReturn, daysSince, requiredGaps, act } from '../lib/applications.js';
 import { COLUMNS, DEFAULT_COLUMNS, KINDS, SPECIES, findGaps, logsForMonth, draftTable, draftCsv, fmtDateTime } from '../lib/log.js';
 import { parsePatrol } from '../lib/traps.js';
@@ -163,6 +164,7 @@ function recordCard(r) {
       <div class="pp">記録した人 <b>${esc(r.by || '—')}さん</b></div>
       ${r.text ? `<p class="w">「${esc(r.text)}」</p>` : ''}
       ${photo}
+      ${r.kind === '捕獲' ? advanceHtml(r) : ''}
       <div class="oks one">
         <button class="ok" data-log-ok="${esc(r.id)}" aria-pressed="${!!r.teamOk}"><span class="box">✓</span><span>チームの確認<b>${r.teamOk ? 'はい' : 'まだ'}</b></span></button>
         ${r.sent ? '<span class="pill sm sent">町へ出した</span>' : ''}
@@ -170,6 +172,44 @@ function recordCard(r) {
       <button class="link" data-log-edit="${esc(r.id)}">${editing === r.id ? '閉じる' : '直す'}</button>
       ${edit}
     </article>`;
+}
+
+// ---------- 町に出す写真を撮って、先に送る（現場の方の指摘④） ----------
+// 写真4枚（町の必要項目どおり）＋捕獲者・日時・場所は自動で付く。AI は枚数と項目の有無だけを見る
+export const metaLine = (r) => `${r.by || '捕獲者なし'}さん・${r.datetime ? timeLabel(r.datetime) : '日時なし'}・${r.trapNo ? `${r.trapNo}番のわな` : '場所なし'}`;
+// 写真に重ねる短い印（捕獲者・日時・わな番号）。写真そのものは書き換えない
+const stamp = (r) => {
+  const d = r.datetime ? new Date(r.datetime) : null;
+  const p = (n) => String(n).padStart(2, '0');
+  return [r.by || '—', d ? `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}` : '日時なし', r.trapNo ? `${r.trapNo}番` : '場所なし'].join('・');
+};
+export function advShot(slot, data, r) {
+  const src = data === 'sample' ? samplePhoto(slot.label) : data;
+  return `<figure class="adv-shot"><div class="adv-img"><img src="${esc(src)}" alt="${esc(slot.label)}"><span class="adv-stamp">${esc(stamp(r))}</span></div><figcaption>${esc(slot.label)}</figcaption></figure>`;
+}
+function advanceHtml(r) {
+  const rules = ctx.data.townRules.advance || { photos: [] };
+  if (!rules.photos.length) return '';
+  const photos = advPhotos(r.id);
+  const check = advanceCheck(r, photos, rules);
+  const adv = advanceOf(r.id);
+  const st = advanceState(adv, check);
+  const sent = st !== 'none' && st !== 'short';
+  const slots = rules.photos.map((p) => photos[p.id]
+    ? advShot(p, photos[p.id], r)
+    : `<label class="adv-slot">${icon('camera')}<b>${esc(p.label)}</b><span>撮る</span><input type="file" accept="image/*" capture="environment" data-adv-photo="${esc(r.id)}:${esc(p.id)}" hidden></label>`).join('');
+  return `
+      <section class="adv${sent ? ' sent' : ''}">
+        <h4>町に出す写真（先に送る）<span>${check.photos}/${check.of}枚</span></h4>
+        <div class="adv-grid">${slots}</div>
+        ${!sent && check.photos < check.of ? `<button class="link" data-adv-sample="${esc(r.id)}">見本の写真で${check.of}枚そろえる（デモ用・架空）</button>` : ''}
+        <p class="adv-meta">自動で付く：${esc(metaLine(r))}</p>
+        ${check.missingItems.length ? `<p class="adv-miss">${icon('alert')}足りない項目：${check.missingItems.map(esc).join('・')}（「直す」で入れてください）</p>` : ''}
+        ${sent
+          ? `<p class="adv-state"><b>町：${esc(ADV_STATES[st].label)}</b><span>写真を先に送った（${esc(timeLabel(adv.sentAt))}）</span></p>`
+          : `<button class="primary wide" data-adv-send="${esc(r.id)}" ${check.ready ? '' : 'disabled'}>先に送る（写真${check.of}枚＋捕獲者・日時・場所）</button>`}
+        <p class="muted" style="margin:6px 0 0">現物（${esc(rules.bring || '町が指定する部位')}）を町の窓口に持っていけば、町はすぐ確認できます。アプリが見るのは写真の枚数と項目の有無だけで、獣種の判定・金額・対象かどうかの判断はしません。</p>
+      </section>`;
 }
 
 function editForm(r) {
@@ -261,6 +301,28 @@ export function logClick(e) {
     rerender();
     return true;
   }
+  const smp = e.target.closest('[data-adv-sample]');
+  if (smp) {
+    for (const p of ctx.data.townRules.advance.photos) if (!advPhotos(smp.dataset.advSample)[p.id]) setAdvPhoto(smp.dataset.advSample, p.id, 'sample');
+    rerender();
+    return true;
+  }
+  const as = e.target.closest('[data-adv-send]');
+  if (as) {
+    const r = logs().find((x) => x.id === as.dataset.advSend);
+    if (!r) return true;
+    const rules = ctx.data.townRules.advance;
+    try {
+      saveAdvance(r.id, advanceAct(advanceOf(r.id), 'send', new Date().toISOString(), advanceCheck(r, advPhotos(r.id), rules)));
+      // 月ごとの申請の動きにも「写真を先に送った」を残す（状態は変えない）
+      const m = r.datetime ? monthOf(fmtDateTime(r.datetime)) : currentMonth();
+      const app = appFor(r.district || ctx.data.homeDistrict, m);
+      saveApplication({ ...app, history: [...app.history, { state: stateOf(app), at: todayStr(), by: 'team', note: `写真を先に送った（${r.trapNo ? `${r.trapNo}番・` : ''}${r.kind}）` }] });
+      toast('写真と捕獲者・日時・場所を、町へ先に送りました。町の画面に「精算の準備できた」と出ます。');
+    } catch (err) { toast(err.message); }
+    rerender();
+    return true;
+  }
   const appSend = e.target.closest('[data-app-send]');
   if (appSend) {
     const month = currentMonth();
@@ -306,6 +368,12 @@ export function logChange(e) {
     store.set('logColumns', cols);
     rerender();
     document.querySelector('details.cols')?.setAttribute('open', '');
+    return true;
+  }
+  const ap = e.target.closest('[data-adv-photo]');
+  if (ap && ap.files[0]) {
+    const [id, slot] = ap.dataset.advPhoto.split(':');
+    readPhoto(ap.files[0]).then((data) => { if (!setAdvPhoto(id, slot, data)) toast('この端末に写真を残せませんでした（空きが足りません）。'); rerender(); }).catch((err) => toast(err.message));
     return true;
   }
   const ph = e.target.closest('[data-photo]');

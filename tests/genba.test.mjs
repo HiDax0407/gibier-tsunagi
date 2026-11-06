@@ -71,3 +71,40 @@ test('過去の点は北沢地区の中だけ。古い月ほど薄い', () => {
   assert.ok(old.opacity < recent.opacity);
   for (const d of dots) assert.ok(d.lat > 35.19 && d.lat < 35.22 && d.lng > 133.6 && d.lng < 133.64);
 });
+
+// ---------- 指摘④ 精算の準備を先に ----------
+import { advanceCheck, advanceState, advanceAct, advancePacket } from '../public/lib/advance.js';
+const adv = team.townRules.advance;
+const rec = { id: 'x1', kind: '捕獲', by: '岩田', datetime: '2026-11-06T06:10:00Z', trapNo: 1, district: 'kitazawa' };
+const four = Object.fromEntries(adv.photos.map((p) => [p.id, 'sample']));
+test('町に出す写真は4枚（全体・部位・場所の札・日付）。枚数と項目の有無だけを見る', () => {
+  assert.deepEqual(adv.photos.map((p) => p.id), ['whole', 'part', 'place', 'date']);
+  const c0 = advanceCheck(rec, {}, adv);
+  assert.equal(c0.ready, false);
+  assert.equal(c0.missingPhotos.length, 4);
+  const c1 = advanceCheck(rec, four, adv);
+  assert.deepEqual([c1.photos, c1.of, c1.ready], [4, 4, true]);
+  const noTrap = advanceCheck({ ...rec, trapNo: null }, four, adv);
+  assert.deepEqual(noTrap.missingItems, ['場所（わな番号）']);
+  assert.equal(noTrap.ready, false);
+});
+
+test('先に送る→準備できた（現物待ち）→町が現物を確認→精算へ。順番を飛ばせない', () => {
+  const ok = advanceCheck(rec, four, adv);
+  assert.throws(() => advanceAct({}, 'send', '2026-11-06', advanceCheck(rec, {}, adv)));
+  const a1 = advanceAct({}, 'send', '2026-11-06', ok);
+  assert.equal(advanceState(a1, ok), 'ready');
+  assert.throws(() => advanceAct(a1, 'settle', '2026-11-06', ok));
+  const a2 = advanceAct(a1, 'receive', '2026-11-07', ok);
+  assert.equal(advanceState(a2, ok), 'received');
+  const a3 = advanceAct(a2, 'settle', '2026-11-07', ok);
+  assert.equal(advanceState(a3, ok), 'settle');
+  assert.throws(() => advanceAct(a3, 'send', '2026-11-07', ok));
+});
+
+test('先に送る中身は、写真と捕獲者・日時・場所だけ。金額・対象・獣種の判定の欄を持たない', () => {
+  const pk = advancePacket(rec, four, adv);
+  assert.deepEqual(Object.keys(pk).sort(), ['by', 'datetime', 'district', 'photos', 'recordId', 'trapNo']);
+  assert.deepEqual(pk.photos, ['whole', 'part', 'place', 'date']);
+  for (const k of Object.keys(pk)) assert.ok(!/amount|price|yen|fee|eligible|score|species/i.test(k), k);
+});

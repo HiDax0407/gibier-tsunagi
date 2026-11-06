@@ -115,6 +115,15 @@ try {
   await page.click('form.logadd button[type=submit]');
   await page.waitForTimeout(600);
   check('2:10 今朝の記録が一番上（捕獲・1番・シカ・1頭・写真あり）', /捕獲 1番 シカ・1頭/.test(await text(page, '.rec.log')) && /写真あり/.test(await text(page, '.rec.log')));
+  // 現場の方の指摘④：町に出す写真4枚 → 先に送る（捕獲者・日時・場所は自動で付く）
+  const firstLog = page.locator('.rec.log').first();
+  check('2:10 町に出す写真の欄が4つ（0/4枚）・先に送るはまだ押せない', /0\/4枚/.test(await firstLog.locator('.adv').innerText()) && await firstLog.locator('[data-adv-send]').isDisabled());
+  await firstLog.locator('[data-adv-sample]').click();
+  await page.waitForTimeout(200);
+  check('2:10 写真4枚がそろい、捕獲者・日時・場所が自動で付く', /4\/4枚/.test(await text(page, '.rec.log .adv')) && /自動で付く：岩田さん.*1番のわな/.test(await text(page, '.rec.log .adv')));
+  await page.locator('.rec.log').first().locator('[data-adv-send]').click();
+  await page.waitForTimeout(300);
+  check('2:10 先に送る → 町：精算の準備できた（現物待ち）', /精算の準備できた（現物待ち）/.test(await text(page, '.rec.log .adv')));
   check('2:10 町とのやりとり：11月分は下書き', /下書き/.test(await text(page, '.app-card')));
   await page.locator('.rec.log').first().locator('[data-log-ok]').click();
   await page.waitForTimeout(200);
@@ -128,11 +137,20 @@ try {
   // 2:20 町の画面で「確認」→ 2:25 チームの画面に「確認済み」
   await page.goto(`${base}/#/town`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.app-card');
-  const nov = page.locator('.app-card', { hasText: '2026年11月分' });
+  // 町側：精算の準備 → 現物を確認 → 精算へ（押すのは町の人）
+  check('2:20 町の画面の上に「精算の準備 1件」', /精算の準備（写真が先に届いた） 1件/.test(await text(page, '.jump-line')));
+  check('2:20 町：精算の準備できた（現物待ち）・写真4/4枚', /精算の準備できた（現物待ち）/.test(await text(page, '.adv-town')) && /4\/4枚/.test(await text(page, '.adv-town')));
+  await page.click('[data-adv-receive]');
+  await page.waitForTimeout(200);
+  check('2:20 町が「現物を確認した」', /現物を確認した/.test(await text(page, '.adv-town .ac-next')));
+  await page.click('[data-adv-settle]');
+  await page.waitForTimeout(200);
+  check('2:20 町が「精算へ」', /精算へ回した/.test(await text(page, '.adv-town .ac-next')));
+  const nov = page.locator('.app-card:not(.adv-town)', { hasText: '2026年11月分' });
   check('2:20 町の確認待ちに11月分（1件）', (await nov.count()) === 1 && /1件/.test(await nov.innerText()));
   await nov.locator('[data-app-confirm]').click();
   await page.waitForTimeout(300);
-  check('2:20 町が「確認」→ 確認済み・支払い待ち', /確認済み/.test(await page.locator('.app-card', { hasText: '2026年11月分' }).innerText()));
+  check('2:20 町が「確認」→ 確認済み・支払い待ち', /確認済み/.test(await page.locator('.app-card:not(.adv-town)', { hasText: '2026年11月分' }).innerText()));
   await page.goto(`${base}/#/log`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.app-card');
   check('2:25 チームの画面に「確認済み」', /確認済み・支払い待ち/.test(await text(page, '.app-card')));

@@ -228,3 +228,10 @@ export function loadLeaflet() {
     .catch((e) => { leafletLoading = null; throw e; });
   return leafletLoading;
 }
+
+// 見本の写真（架空）：灰色の札に「見本」と写すものの名前だけ。実際の獣の写真は使わない
+export function samplePhoto(label) {
+  const t = esc(label);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="240" viewBox="0 0 320 240"><rect width="320" height="240" fill="#e9ecea"/><rect x="10" y="10" width="300" height="220" rx="10" fill="none" stroke="#8c958f" stroke-width="2" stroke-dasharray="8 7"/><text x="160" y="70" font-size="22" text-anchor="middle" fill="#4a4a4a" font-family="sans-serif">見本の写真（架空）</text><text x="160" y="108" font-size="20" font-weight="700" text-anchor="middle" fill="#161616" font-family="sans-serif">${t}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
