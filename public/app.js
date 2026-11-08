@@ -19,6 +19,7 @@ import { renderLog, logClick, logChange, logSubmit, showLogParse, renderReport, 
 import { renderWatch, watchClick } from './screens/watch.js';
 import { renderImpact, impactPointer } from './screens/impact.js';
 import { change, monthShort } from './lib/impact.js';
+import { FIRST_STEPS } from './lib/howto.js';
 
 let data;
 
@@ -94,6 +95,7 @@ function renderTeam() {
 
   view.innerHTML = `
     <h1>${esc(areaName)}のチーム</h1>
+    ${introHtml()}
     <a class="stop-line" href="#/risk"><span class="k">${icon('alert')}止まる役割</span><span class="v">${esc(stopLine)}</span>${ICON.next}</a>
     <button class="outline wide" data-go="cards" style="margin:0 0 18px">${icon('card')}募集カードを出す</button>
     <p class="goal-head">名産として出せる状態まで</p>
@@ -130,6 +132,19 @@ function renderTeam() {
     <button class="outline wide" data-go="report" style="margin-top:12px">${icon('chat')}見かけたら知らせる（住民の方の画面）</button>
     <button class="link reset" data-scene="asa">撮影用：「ある朝」の最初の状態にする</button>
     <button class="link reset" data-reset style="margin-top:0">デモを最初の状態に戻す（この端末で足したものを消す）</button>`;
+}
+
+// 入口の「はじめての方へ」：はじめての朝に押す順（3つのボタン）。閉じたらこの端末に覚えて出さない。
+// 撮影用の「ある朝」（#/asa）に戻すと、また出る（LOCAL_KEYS で消す）
+function introHtml() {
+  if (store.get('introClosed', false)) return '';
+  const steps = FIRST_STEPS.steps.map((st, i) => `
+      <li><button data-go="${esc(st.go)}"><span class="n">${i + 1}</span><span class="t"><b>${esc(st.label)}</b><span>（${esc(st.note)}）</span></span>${ICON.next}</button></li>`).join('');
+  return `<section class="intro" aria-label="はじめての方へ">
+      <div class="in-head"><b>はじめての方へ</b><button class="outline in-close" data-intro-close>閉じる</button></div>
+      <p class="in-lead">${esc(FIRST_STEPS.lead)}</p>
+      <ol class="in-steps">${steps}</ol>
+    </section>`;
 }
 
 // 免許・許可の期限：60日前から「更新の申請を」と知らせる（本人申告の期限。可否は判断しない）
@@ -749,7 +764,7 @@ function townCsv(month) {
 }
 
 // ---------- 切り替え ----------
-const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos', 'showHistory', 'advPhotos', 'advance'];
+const LOCAL_KEYS = ['addedHands', 'decided', 'goalChecks', 'teachAdded', 'teachOk', 'talks', 'talkScope', 'talkHidden', 'appsOver', 'trapOver', 'staleHours', 'logsAdded', 'logEdits', 'photos', 'reportsAdded', 'reportSeen', 'logColumns', 'spoke', 'watchSet', 'scene', 'trapPos', 'showHistory', 'advPhotos', 'advance', 'introClosed'];
 function clearLocal() {
   for (const k of LOCAL_KEYS) {
     try { localStorage.removeItem(k); } catch { /* 使えない環境 */ }
@@ -848,6 +863,13 @@ document.addEventListener('click', (e) => {
     clearLocal();
     toast('デモを最初の状態に戻しました。');
     route();
+    return;
+  }
+
+  // 入口の「はじめての方へ」を閉じる（この端末に覚える。#/asa で戻すとまた出る）
+  if (e.target.closest('[data-intro-close]')) {
+    store.set('introClosed', true);
+    document.querySelector('.intro')?.remove();
     return;
   }
 

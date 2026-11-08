@@ -120,6 +120,22 @@ figure.photo { margin: 24px 0 0; }
 figure.photo img { width: 100%; display: block; border-radius: 14px; aspect-ratio: 3 / 2; object-fit: cover; }
 figure.photo figcaption { font-size: 13px; color: var(--faint); margin-top: 6px; }
 
+/* 入口の「はじめての方へ」（止まる役割の上・覆いかぶさらない） */
+.intro { border: 1.5px solid var(--accent); border-radius: 14px; padding: 12px 14px 12px; margin: 0 0 16px; background: var(--bg); }
+.intro .in-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.intro .in-head b { font-size: 17px; font-weight: 800; }
+.intro .in-close { min-height: 44px; padding: 6px 14px; font-size: 14px; }
+.intro .in-lead { margin: 2px 0 10px; font-size: 17px; }
+.intro .in-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.intro .in-steps button {
+  display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 10px; width: 100%; min-height: 52px;
+  padding: 8px 10px 8px 8px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); text-align: left; font-size: 17px; cursor: pointer;
+}
+.intro .in-steps .n { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; }
+.intro .in-steps .t b { font-weight: 800; }
+.intro .in-steps .t > span { color: var(--sub); font-size: 15px; }
+.intro .in-steps svg { width: 20px; height: 20px; color: var(--accent); }
+
 /* 止まる役割 */
 .stop {
   border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px 16px; margin: 0 0 14px;

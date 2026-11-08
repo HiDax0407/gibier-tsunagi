@@ -40,6 +40,8 @@ try {
   check('0:00 チームの表：言葉が残った工程 0/7', /0\s*\/7/.test(expBefore), expBefore);
   const rowsBefore = await page.locator('.trow').evaluateAll((els) => els.map((e) => e.innerText.replace(/\s+/g, ' ')));
   check('0:00 記録は空き', /記録.*空き/.test(rowsBefore.at(-1)), rowsBefore.at(-1));
+  // 入口の「はじめての方へ」（止まる役割の上・3つのボタン）。#/asa で戻すと、閉じていてもまた出る
+  check('0:00 入口に「はじめての方へ」（3つのボタン）', (await page.locator('.intro').count()) === 1 && /はじめての朝は、この順で。/.test(await text(page, '.intro')) && (await page.locator('.intro .in-steps button').count()) === 3);
 
   // 0:20 チームの先頭の一行「止まる役割」→ 募集カード「記録」→ お願いする
   await page.click('.stop-line');
