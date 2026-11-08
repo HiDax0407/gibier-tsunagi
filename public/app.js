@@ -1,7 +1,7 @@
 // ジビエつなぎ：画面の切り替えと表示。
 // AI は人を選ばない・順位をつけない。手を挙げた人の並びは、手を挙げた順のまま。
 import { ICON, ROLE_ICON } from './icons.js';
-import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi, recSeg, timeLabel } from './ui.js';
+import { ctx, view, tabsEl as tabs, store, esc, strip, icon, roleIcon, renderTop, toggleHowto, sayHowto, SR, speak, dayLabel, todayStr, downloadCsv as saveCsv, toast, voice, aiTag, dateStr, AI, loadAi, askAi, recSeg, timeLabel } from './ui.js';
 import { countDistrict, townRows, townTotals } from './lib/town.js';
 import { monthOf, shiftMonth, monthLabel, recordsForMonth, summarizeByTeacher, toCsv } from './lib/teach.js';
 import { districtTotals, fmtDateTime } from './lib/log.js';
@@ -865,6 +865,10 @@ document.addEventListener('click', (e) => {
     route();
     return;
   }
+
+  // 各画面の「使い方」（上の帯）：開く／閉じる・読み上げ
+  if (e.target.closest('[data-howto]') || e.target.closest('[data-howto-close]')) { toggleHowto(); return; }
+  if (e.target.closest('[data-howto-say]')) { sayHowto(e.target.closest('[data-howto-say]')); return; }
 
   // 入口の「はじめての方へ」を閉じる（この端末に覚える。#/asa で戻すとまた出る）
   if (e.target.closest('[data-intro-close]')) {

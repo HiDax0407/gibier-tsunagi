@@ -1,5 +1,6 @@
 // 画面で共通に使う部品（保存・文字の安全な出し方・上の帯・声・地図の読み込み・知らせの表示）。
 import { ICON, ROLE_ICON } from './icons.js';
+import { howtoFor } from './lib/howto.js';
 
 export const view = document.getElementById('view');
 export const top = document.getElementById('top');
@@ -23,17 +24,52 @@ export const strip = (name) => String(name).replace(/（架空）/g, '').trim();
 export const icon = (name) => `<span class="ico">${ICON[name] || ''}</span>`;
 export const roleIcon = (role) => icon(ROLE_ICON[role] || 'doc');
 
+// 今いる画面の名前（#/talk → talk。無ければ team）
+export const screenName = () => (location.hash.replace(/^#\/?/, '') || 'team').split('/')[0];
+
 export function renderTop({ back, here } = {}) {
+  // 「使い方」は、3行の説明がある画面（話す・わな・チーム・記録・町の地区一覧・見かけたら知らせる）にだけ出す。「大きな字」の左隣・同じ見た目
+  const howto = howtoFor(screenName()) ? '<button class="zoom howto" data-howto aria-expanded="false" aria-controls="howto-card">使い方</button>' : '';
+  const zoom = `<button class="zoom" data-zoom aria-pressed="${document.body.classList.contains('big')}">大きな字</button>`;
   if (back) {
     top.className = 'top line';
     // 下の画面にも「大きな字」（高齢の方が使う前提。戻る矢印＋題名の並びはそのまま）
     top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}ジビエつなぎ</a>${here ? `<span class="here">${esc(here)}</span>` : ''}
-      <button class="zoom" data-zoom aria-pressed="${document.body.classList.contains('big')}">大きな字</button>`;
+      ${howto}${zoom}`;
   } else {
     top.className = 'top';
     top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area">${esc(ctx.data.area.name)}</span>
-      <button class="zoom" data-zoom aria-pressed="${document.body.classList.contains('big')}">大きな字</button>`;
+      ${howto}${zoom}`;
   }
+}
+
+// ---------- 使い方（見出しの下の白いカード・3行＋読み上げ＋閉じる） ----------
+// 上の「使い方」を押すと開き、もう一度押すか「閉じる」で閉じる。文は public/lib/howto.js の決まった3行だけ
+export function howtoCardHtml(h) {
+  return `<section class="howto-card" id="howto-card" aria-label="${esc(h.name)}の使い方">
+    <ul class="hc-lines">${h.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
+    <div class="hc-foot"><button class="say" data-howto-say>${icon('speaker')}読み上げ</button><button class="outline hc-close" data-howto-close>閉じる</button></div>
+  </section>`;
+}
+export function toggleHowto() {
+  const btn = top.querySelector('[data-howto]');
+  const cur = document.getElementById('howto-card');
+  if (cur) {
+    cur.remove();
+    try { speechSynthesis.cancel(); } catch { /* 読み上げなし */ }
+    btn?.setAttribute('aria-expanded', 'false');
+    return;
+  }
+  const h = howtoFor(screenName());
+  const h1 = view.querySelector('h1');
+  if (!h || !h1) return;
+  h1.insertAdjacentHTML('afterend', howtoCardHtml(h));
+  btn?.setAttribute('aria-expanded', 'true');
+}
+// 読み上げ（もう一度押すと止まる）
+export function sayHowto(btn) {
+  const h = howtoFor(screenName());
+  if (h) speak(h.lines.join(''), btn);
 }
 
 // 記録タブの中の切り替え（活動と捕獲／教えた記録）

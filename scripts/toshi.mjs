@@ -56,6 +56,13 @@ try {
   // 0:40 わなの地図：模擬の知らせ → 1番 → 二人で向かう
   await page.click('#tabs a[href="#/map"]');
   await page.waitForSelector('[data-sim]');
+  // 上の「使い方」→ 見出しの下に3行のカード（読み上げ・閉じる）。もう一度押すと閉じる
+  await page.click('[data-howto]');
+  await page.waitForTimeout(100);
+  check('0:40 「使い方」が見出しの下に開く（3行・読み上げ・閉じる）', (await page.locator('#howto-card .hc-lines li').count()) === 3 && (await page.locator('#howto-card [data-howto-say]').count()) === 1 && /入ったわなは上のカードに出ます/.test(await text(page, '#howto-card')));
+  await page.click('[data-howto]');
+  await page.waitForTimeout(100);
+  check('0:40 もう一度「使い方」で閉じる', (await page.locator('#howto-card').count()) === 0);
   await page.click('[data-sim]');
   await page.waitForTimeout(300);
   check('0:40 知らせは1番に入る', /1番のわな/.test(await text(page, '.tp-head')));
