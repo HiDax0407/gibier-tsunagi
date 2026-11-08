@@ -34,11 +34,13 @@ export function renderTop({ back, here } = {}) {
   if (back) {
     top.className = 'top line';
     // 下の画面にも「大きな字」（高齢の方が使う前提。戻る矢印＋題名の並びはそのまま）
-    top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}ジビエつなぎ</a>${here ? `<span class="here">${esc(here)}</span>` : ''}
+    top.innerHTML = `<a class="back" href="${esc(back)}">${icon('back')}<span class="bt">ジビエつなぎ</span></a>${here ? `<span class="here">${esc(here)}</span>` : ''}
       ${howto}${zoom}`;
   } else {
     top.className = 'top';
-    top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area">${esc(ctx.data.area.name)}</span>
+    // 地区名は狭い画面で「北沢地区／（架空）」の2行に折れる（途中で切れない）
+    const [areaA, areaB] = String(ctx.data.area.name).split(/(?=（)/);
+    top.innerHTML = `<span class="brand">ジビエつなぎ</span><span class="area"><i>${esc(areaA)}</i>${areaB ? `<i>${esc(areaB)}</i>` : ''}</span>
       ${howto}${zoom}`;
   }
 }
