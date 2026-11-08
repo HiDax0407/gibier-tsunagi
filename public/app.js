@@ -118,10 +118,6 @@ function renderTeam() {
       ${manual}
       <p class="muted" style="margin:6px 0 8px">印はチームが付けます。AI は判定しません。</p>
     </section>
-    <figure class="photo">
-      <img src="/img/photo_03_shokudo.jpg" alt="山あいの食堂に並ぶ鹿肉の煮込み定食（AI で生成した架空の場面）" loading="lazy">
-      <figcaption>ゴール：地域の名産として出せる状態。この先に、新しく入る人が増える・農村の被害が減る・ジビエが普段の食べものになる。（写真は AI で生成した架空の場面）</figcaption>
-    </figure>
     <a class="goal-link" href="#/impact" style="margin-top:20px">
       <span class="gl-k">目的：害獣の被害を減らす</span>
       <span class="gl-v"><span>町と同じ数（捕獲・見回り・住民の知らせ）を、月ごとに見る</span></span>
